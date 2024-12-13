@@ -1,26 +1,48 @@
 {
   "name": "multi-chain-balance-diff",
-  "version": "0.1.0",
-  "description": "A minimal CLI tool to fetch and compare wallet balances across EVM chains",
+  "version": "0.4.0",
+  "description": "CLI tool to fetch and compare wallet balances across EVM and Solana chains",
   "main": "src/index.js",
+  "bin": {
+    "multi-chain-balance-diff": "./src/index.js",
+    "mcbd": "./src/index.js",
+    "balance-diff": "./src/index.js"
+  },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test tests/"
+    "test": "node --test 'tests/*.test.js'"
   },
   "keywords": [
     "ethereum",
+    "solana",
     "web3",
     "balance",
     "multi-chain",
     "cli",
     "staking",
-    "defi"
+    "defi",
+    "helium",
+    "crypto",
+    "wallet"
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/metawake/multi-chain-balance-diff.git"
+  },
+  "bugs": {
+    "url": "https://github.com/metawake/multi-chain-balance-diff/issues"
+  },
+  "homepage": "https://github.com/metawake/multi-chain-balance-diff#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
+    "@solana/web3.js": "^1.95.0",
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4"
   }
 }
+
