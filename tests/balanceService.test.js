@@ -16,7 +16,8 @@ describe('formatBalance', () => {
   it('formats small amounts correctly', () => {
     const result = formatBalance(1234567890000000n, 'ETH');
     assert.ok(result.includes('ETH'));
-    assert.ok(result.includes('0.001234'));
+    // 1234567890000000 / 10^18 = 0.00123456789, rounds to 0.001235 with 6 decimals
+    assert.ok(result.includes('0.001235'));
   });
 
   it('formats zero balance', () => {
@@ -42,3 +43,4 @@ describe('formatBalanceDiff', () => {
     assert.strictEqual(result, '+0 ETH');
   });
 });
+
