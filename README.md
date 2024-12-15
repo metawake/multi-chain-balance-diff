@@ -1,188 +1,399 @@
 # multi-chain-balance-diff
 
-A minimal CLI tool to fetch and compare wallet balances across EVM chains. Built for developers working on multi-chain staking infrastructure, LST/LRT protocols, and DeFi analytics.
+[![npm version](https://img.shields.io/npm/v/multi-chain-balance-diff)](https://www.npmjs.com/package/multi-chain-balance-diff)
+[![Tests](https://github.com/metawake/multi-chain-balance-diff/actions/workflows/test.yml/badge.svg)](https://github.com/metawake/multi-chain-balance-diff/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+
+> **One command to track your crypto across every chain.**
+
+A CLI tool to fetch and compare wallet balances across **multiple blockchains**. Supports EVM chains (Ethereum, Polygon, Base, Arbitrum, Optimism) and Solana (including Helium ecosystem tokens).
+
+Built for developers working on multi-chain staking infrastructure, LST/LRT protocols, and DeFi analytics.
+
+## Demo
+
+```bash
+$ mcbd --address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --network mainnet
+
+🔗 Connecting to Ethereum Mainnet...
+📊 Fetching balance data for 0xd8dA6B...96045
+🪙  Checking 5 tokens...
+
+═════════════════════════════════════════════════════════════════
+  Ethereum Mainnet
+─────────────────────────────────────────────────────────────────
+  Current block: 21,234,567
+  Address: 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  Explorer: https://etherscan.io/address/0xd8dA6BF26964aF9...
+─────────────────────────────────────────────────────────────────
+  Native balance: 1,234.567891 ETH
+  Δ over 50 blocks: +0.02 ETH
+    (21,234,517 → 21,234,567)
+─────────────────────────────────────────────────────────────────
+  Tokens:
+    USDC       50,000.00
+    stETH      100.5
+═════════════════════════════════════════════════════════════════
+```
+
+## Features
+
+- ✅ **Multi-chain support** — EVM (Ethereum, Polygon, Base, Arbitrum, Optimism) and Solana
+- ✅ **Native balance diff** — Track balance changes over N blocks/slots
+- ✅ **Token balances** — ERC-20 (EVM) and SPL tokens (Solana)
+- ✅ **Helium ecosystem** — HNT, MOBILE, IOT, DC token tracking
+- ✅ **JSON output** — Pipe to `jq`, use in scripts and CI/CD
+- ✅ **Multi-address** — Check multiple wallets in one command
+- ✅ **Watch mode** — Real-time balance monitoring
+- ✅ **Config profiles** — Save addresses for quick access
+- ✅ **Adapter pattern** — Easy to add new chains
 
 ## Why This Tool?
 
 When building staking or restaking infrastructure, you often need to:
 - **Track balance changes** over time to verify reward accrual
-- **Monitor multiple chains** from a single interface
+- **Monitor multiple chains** from a single interface  
 - **Debug transactions** by comparing before/after states
-- **Validate indexer data** against on-chain state
+- **Track Helium hotspot rewards** (HNT, MOBILE, IOT)
+- **Automate monitoring** with JSON output for scripts/webhooks
 
-This tool provides a quick, scriptable way to fetch this data without spinning up a full indexing stack.
+## Quick Start
 
-## Features
-
-- ✅ Native balance fetching (ETH, MATIC, etc.)
-- ✅ Balance diff over N blocks (see how balance changed)
-- ✅ ERC-20 token balance checking (configurable token list)
-- ✅ Multi-network support (Ethereum, Polygon, Sepolia)
-- 🔜 Helium/Solana support (HNT, MOBILE, IOT tokens)
-- 🔜 Historical balance tracking with Postgres
-
-## Prerequisites
-
-- **Node.js** v18+ (uses native fetch)
-- **npm** v8+
-
-## Installation
+### Using npx (no install required)
 
 ```bash
-git clone https://github.com/yourusername/multi-chain-balance-diff.git
-cd multi-chain-balance-diff
-npm install
+npx multi-chain-balance-diff --address 0xYourAddress --network mainnet
 ```
 
-## Configuration
+### Global Installation
 
-Copy the example environment file:
+```bash
+npm install -g multi-chain-balance-diff
+
+# Now you can use any of these commands:
+mcbd --address 0xYourAddress
+balance-diff --address 0xYourAddress
+multi-chain-balance-diff --address 0xYourAddress
+```
+
+### From Source
+
+```bash
+git clone https://github.com/metawake/multi-chain-balance-diff.git
+cd multi-chain-balance-diff
+npm install
+node src/index.js --address 0xYourAddress
+```
+
+## Usage
+
+### List supported networks
+
+```bash
+mcbd --list-networks
+```
+
+### Ethereum balance
+
+```bash
+mcbd --address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+```
+
+### L2 Networks
+
+```bash
+mcbd --address 0x... --network base
+mcbd --address 0x... --network arbitrum
+mcbd --address 0x... --network optimism
+```
+
+### Solana balance
+
+```bash
+mcbd --address 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM --network solana
+```
+
+### Helium tokens (HNT, MOBILE, IOT)
+
+```bash
+mcbd --address <SOLANA_ADDRESS> --network helium
+```
+
+### Multiple addresses
+
+```bash
+# Comma-separated
+mcbd --addresses 0xAAA...,0xBBB...,0xCCC... --network mainnet
+
+# From file (one address per line)
+mcbd --addresses addresses.txt --network mainnet
+```
+
+Output for multiple addresses:
+```
+═════════════════════════════════════════════════════════════════
+  Ethereum Mainnet — 3 addresses
+═════════════════════════════════════════════════════════════════
+  ✓ 0xAAA...AAA      12.5 ETH  +0.02 ETH
+  ✓ 0xBBB...BBB       3.2 ETH  +0 ETH
+  ✓ 0xCCC...CCC      45.1 ETH  -2.00 ETH
+─────────────────────────────────────────────────────────────────
+  Total:             60.8 ETH  -1.98 ETH
+═════════════════════════════════════════════════════════════════
+```
+
+### Watch mode
+
+Real-time balance monitoring with configurable interval:
+
+```bash
+# Watch balance every 30 seconds (default)
+mcbd --address 0x... --watch
+
+# Custom interval (10 seconds)
+mcbd --address 0x... --watch --interval 10
+
+# Watch Helium rewards
+mcbd --address <SOLANA_ADDRESS> --network helium --watch --interval 60
+```
+
+Output:
+```
+🔄 Watch mode — monitoring 0xd8dA6B...96045
+   Network: Ethereum Mainnet
+   Interval: 30s
+   Press Ctrl+C to exit
+
+─────────────────────────────────────────────────────────────────
+  [14:32:01] 1234.56 ETH  Δ50: +0.02 ETH
+  [14:32:31] 1234.58 ETH  Δ50: +0.02 ETH (+0.02 since last check)
+  [14:33:01] 1234.58 ETH  Δ50: +0.02 ETH
+```
+
+### Config profiles
+
+Create a `.balancediffrc.json` file in your project or home directory:
+
+```json
+{
+  "profiles": {
+    "vitalik": {
+      "network": "mainnet",
+      "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+    },
+    "my-hotspot": {
+      "network": "helium",
+      "address": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+    },
+    "treasury": {
+      "network": "base",
+      "address": ["0xAAA...", "0xBBB...", "0xCCC..."]
+    }
+  }
+}
+```
+
+Then use profiles:
+
+```bash
+mcbd --profile vitalik
+mcbd --profile my-hotspot --watch
+mcbd --profile treasury
+```
+
+Config file locations (searched in order):
+1. `.balancediffrc.json` (current directory)
+2. `.balancediffrc` (current directory)
+3. `~/.balancediffrc.json`
+4. `~/.config/balancediff/config.json`
+
+### Change diff range
+
+```bash
+# Compare balance now vs 1000 blocks ago
+mcbd --address 0x... --blocks 1000
+```
+
+### Skip token checks
+
+```bash
+mcbd --address 0x... --no-tokens
+```
+
+### JSON output
+
+```bash
+# Get structured output for scripting
+mcbd --address 0x... --json
+
+# Pipe to jq for filtering
+mcbd --address 0x... --json | jq '.tokens[] | select(.symbol == "USDC")'
+
+# Use in shell scripts
+BALANCE=$(mcbd --address 0x... --json | jq -r '.native.balance')
+echo "Current balance: $BALANCE ETH"
+```
+
+## Example JSON Output
+
+```json
+{
+  "network": {
+    "key": "mainnet",
+    "name": "Ethereum Mainnet",
+    "chainType": "evm",
+    "chainId": 1
+  },
+  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "explorer": "https://etherscan.io/address/0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "block": {
+    "current": 21234567,
+    "previous": 21234517
+  },
+  "native": {
+    "symbol": "ETH",
+    "decimals": 18,
+    "balance": "1234.567891",
+    "balanceRaw": "1234567891000000000000",
+    "diff": "0.02",
+    "diffRaw": "20000000000000000",
+    "diffSign": "positive"
+  },
+  "tokens": [
+    {
+      "symbol": "USDC",
+      "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "decimals": 6,
+      "balance": "50000.00",
+      "balanceRaw": "50000000000"
+    }
+  ],
+  "timestamp": "2024-12-15T10:30:00.000Z"
+}
+```
+
+## Supported Networks
+
+| Network | Chain Type | Chain ID | Native Token | Tokens |
+|---------|------------|----------|--------------|--------|
+| `mainnet` | EVM | 1 | ETH | USDC, USDT, UNI, LINK, stETH |
+| `polygon` | EVM | 137 | MATIC | USDC, USDT, WETH, LINK |
+| `base` | EVM | 8453 | ETH | USDC, USDbC, cbETH, DAI |
+| `arbitrum` | EVM | 42161 | ETH | USDC, USDT, ARB, GMX, WETH |
+| `optimism` | EVM | 10 | ETH | USDC, USDT, OP, SNX, WETH |
+| `sepolia` | EVM | 11155111 | ETH | LINK |
+| `solana` | Solana | - | SOL | USDC, BONK, JUP |
+| `helium` | Solana | - | SOL | HNT, MOBILE, IOT, DC |
+| `solana-devnet` | Solana | - | SOL | - |
+
+## Configuration
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` to add your own RPC URLs (optional - public RPCs work by default):
+Optional: Add your own RPC URLs for better rate limits:
 
 ```env
 RPC_URL_ETH=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
 RPC_URL_POLYGON=https://polygon-mainnet.g.alchemy.com/v2/YOUR_KEY
+RPC_URL_BASE=https://base-mainnet.g.alchemy.com/v2/YOUR_KEY
+RPC_URL_ARBITRUM=https://arb-mainnet.g.alchemy.com/v2/YOUR_KEY
+RPC_URL_OPTIMISM=https://opt-mainnet.g.alchemy.com/v2/YOUR_KEY
+RPC_URL_SOLANA=https://api.mainnet-beta.solana.com
 ```
 
-## Usage
-
-### Basic usage (Ethereum mainnet)
-
-```bash
-node src/index.js --address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-```
-
-### Check a different network
-
-```bash
-# Polygon
-node src/index.js --address 0x... --network polygon
-
-# Sepolia testnet
-node src/index.js --address 0x... --network sepolia
-```
-
-### Change the block range for diff calculation
-
-```bash
-# Compare current balance vs 100 blocks ago
-node src/index.js --address 0x... --blocks 100
-```
-
-### Skip ERC-20 token checks
-
-```bash
-node src/index.js --address 0x... --no-tokens
-```
-
-### Example output
+## Architecture
 
 ```
-🔗 Connecting to Ethereum Mainnet...
-📊 Fetching balance data for 0xd8dA6B...96045
-🪙  Checking 5 ERC-20 tokens...
-
-────────────────────────────────────────────────────────────
-  Chain:         Ethereum Mainnet
-  Current block: 19234567
-  Address:       0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-────────────────────────────────────────────────────────────
-  Native balance: 1234.567891 ETH
-  Δ over 50 blocks: +0.001234 ETH
-    (block 19234517 → 19234567)
-────────────────────────────────────────────────────────────
-  ERC-20 Tokens:
-    USDC     1,203.11
-    stETH    45.678901
-────────────────────────────────────────────────────────────
+src/
+├── index.js                 # CLI entry point
+├── config/
+│   └── networks.js          # Chain configurations (RPC, tokens)
+├── adapters/
+│   ├── index.js             # Adapter factory
+│   ├── baseAdapter.js       # Abstract interface
+│   ├── evmAdapter.js        # Ethereum/Polygon/L2s (ethers.js)
+│   └── solanaAdapter.js     # Solana/Helium (@solana/web3.js)
+└── services/
+    └── balanceService.js    # Legacy (kept for reference)
 ```
 
-## Supported Networks
+### Adding a New Chain
 
-| Network | Native Token | Status |
-|---------|--------------|--------|
-| Ethereum Mainnet | ETH | ✅ Supported |
-| Polygon Mainnet | MATIC | ✅ Supported |
-| Sepolia Testnet | ETH | ✅ Supported |
-| Helium (Solana) | HNT | 🔜 Planned |
+1. Create `src/adapters/newChainAdapter.js` extending `BaseAdapter`
+2. Implement required methods: `connect()`, `getNativeBalance()`, `getTokenBalances()`, etc.
+3. Add chain config to `src/config/networks.js` with `chainType: 'newchain'`
+4. Register in `src/adapters/index.js` ADAPTER_MAP
 
-## Project Structure
+## Prerequisites
 
-```
-multi-chain-balance-diff/
-├── src/
-│   ├── index.js              # CLI entry point
-│   ├── config/
-│   │   └── networks.js       # Network configs (RPCs, tokens, chain IDs)
-│   └── services/
-│       └── balanceService.js # Balance fetching logic
-├── .env.example              # Environment template
-├── package.json
-└── README.md
-```
+- **Node.js** v18+
+- **npm** v8+
+
+## CLI Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-a, --address <addr>` | Wallet address to check | - |
+| `-A, --addresses <addrs>` | Multiple addresses (comma-separated or file) | - |
+| `-n, --network <net>` | Network to query | `mainnet` |
+| `-b, --blocks <num>` | Blocks/slots to look back | `50` |
+| `-w, --watch` | Enable watch mode | `false` |
+| `-i, --interval <sec>` | Watch interval in seconds | `30` |
+| `-p, --profile <name>` | Use saved profile | - |
+| `--config <path>` | Path to config file | - |
+| `--no-tokens` | Skip token balance checks | - |
+| `--json` | Output as JSON | `false` |
+| `--list-networks` | List supported networks | - |
 
 ## Future Extensions
 
 ### Short-term
-- [ ] ERC-20 balance diff over time
-- [ ] Support for Arbitrum, Base, Optimism
-- [ ] JSON output mode for scripting
-- [ ] Helium/Solana support (HNT, MOBILE, IOT tokens)
+- [x] JSON output mode (`--json`)
+- [x] Multi-address support
+- [x] Watch mode (`--watch`)
+- [x] Config file support
+- [x] L2 chains (Base, Arbitrum, Optimism)
+- [ ] Balance diff for tokens (not just native)
+- [ ] USD value display via CoinGecko
 
 ### Medium-term
 - [ ] REST API wrapper (Express/Fastify)
-- [ ] WebSocket subscriptions for real-time balance updates
+- [ ] WebSocket subscriptions for real-time updates
 - [ ] Postgres integration for historical tracking
+- [ ] ENS/SNS name resolution
 
 ### Long-term (LST/LRT focused)
 - [ ] Staking contract event indexing
 - [ ] Reward calculation engine
-- [ ] Integration with liquid staking protocols (Lido, Rocket Pool, EigenLayer)
-- [ ] Multi-chain position aggregation
+- [ ] Integration with Lido, Rocket Pool, EigenLayer
+- [ ] Helium hotspot reward analytics
 
-## Extending for LST/LRT Use Cases
+## Extending for Staking Use Cases
 
-This tool is designed as a foundation for more complex staking infrastructure. Here's how it maps to common LST/LRT backend needs:
-
-### Event Ingestion
-The `balanceService.js` pattern can be extended to subscribe to contract events:
+The adapter pattern makes it easy to add staking-specific functionality:
 
 ```javascript
-// Future: src/services/eventService.js
-async function subscribeToStakingEvents(provider, contractAddress) {
-  const contract = new ethers.Contract(contractAddress, STAKING_ABI, provider);
+// Example: Add to EVMAdapter for staking event tracking
+async subscribeToStakingEvents(contractAddress, callback) {
+  const contract = new ethers.Contract(contractAddress, STAKING_ABI, this.provider);
   contract.on('Staked', (user, amount, event) => {
-    // Ingest into Postgres, update balances, trigger notifications
+    callback({ type: 'stake', user, amount, block: event.blockNumber });
   });
 }
 ```
 
-### Reward Calculations
-The block-based diff logic demonstrates the pattern for tracking rewards:
+## Contributing
 
-```javascript
-// Current balance at block N minus balance at block M
-// = rewards accrued (for simple staking)
-// For rebasing tokens (stETH), track share balance instead
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-### Multi-chain Aggregation
-The network config structure supports adding new chains easily:
-
-```javascript
-// Add to networks.js
-arbitrum: {
-  name: 'Arbitrum One',
-  chainId: 42161,
-  rpcUrl: process.env.RPC_URL_ARBITRUM || 'https://arb1.arbitrum.io/rpc',
-  // ...
-}
-```
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
