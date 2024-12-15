@@ -1,0 +1,29 @@
+{
+  "profiles": {
+    "vitalik": {
+      "network": "mainnet",
+      "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+    },
+    "my-hotspot": {
+      "network": "helium",
+      "address": "YOUR_SOLANA_ADDRESS_HERE"
+    },
+    "treasury": {
+      "network": "mainnet",
+      "address": [
+        "0xAAA...",
+        "0xBBB...",
+        "0xCCC..."
+      ]
+    },
+    "l2-wallets": {
+      "network": "base",
+      "address": "0xYOUR_BASE_ADDRESS"
+    }
+  },
+  "defaults": {
+    "blocks": 100,
+    "tokens": true
+  }
+}
+
