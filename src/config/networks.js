@@ -1,26 +1,30 @@
 /**
- * Network configuration for supported EVM chains.
+ * Network configuration for supported chains.
  * 
  * Each network includes:
  * - name: Human-readable network name
- * - chainId: EVM chain ID
+ * - chainType: 'evm' or 'solana' (determines which adapter to use)
+ * - chainId: Chain ID (EVM) or null (Solana)
  * - rpcUrl: Default public RPC (can be overridden via env vars)
- * - nativeSymbol: Native currency symbol (ETH, MATIC, etc.)
+ * - nativeSymbol: Native currency symbol (ETH, SOL, etc.)
+ * - nativeDecimals: Decimals for native currency
  * - blockExplorer: Block explorer URL for reference
- * - tokens: Common ERC-20 tokens to check balances for
+ * - tokens: Tokens to check balances for
  */
 
 require('dotenv').config();
 
 const networks = {
   // ==========================================================================
-  // EVM Networks (fully supported)
+  // EVM Networks
   // ==========================================================================
   mainnet: {
     name: 'Ethereum Mainnet',
+    chainType: 'evm',
     chainId: 1,
     rpcUrl: process.env.RPC_URL_ETH || 'https://eth.llamarpc.com',
     nativeSymbol: 'ETH',
+    nativeDecimals: 18,
     blockExplorer: 'https://etherscan.io',
     tokens: [
       { symbol: 'USDC', address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },
@@ -30,11 +34,14 @@ const networks = {
       { symbol: 'stETH', address: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84', decimals: 18 },
     ],
   },
+
   polygon: {
     name: 'Polygon Mainnet',
+    chainType: 'evm',
     chainId: 137,
     rpcUrl: process.env.RPC_URL_POLYGON || 'https://polygon.llamarpc.com',
     nativeSymbol: 'MATIC',
+    nativeDecimals: 18,
     blockExplorer: 'https://polygonscan.com',
     tokens: [
       { symbol: 'USDC', address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 },
@@ -43,39 +50,101 @@ const networks = {
       { symbol: 'LINK', address: '0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39', decimals: 18 },
     ],
   },
+
   sepolia: {
     name: 'Sepolia Testnet',
+    chainType: 'evm',
     chainId: 11155111,
     rpcUrl: process.env.RPC_URL_SEPOLIA || 'https://rpc.sepolia.org',
     nativeSymbol: 'ETH',
+    nativeDecimals: 18,
     blockExplorer: 'https://sepolia.etherscan.io',
     tokens: [
-      // Testnet tokens are less standardized; keeping minimal for demo
       { symbol: 'LINK', address: '0x779877A7B0D9E8603169DdbD7836e478b4624789', decimals: 18 },
     ],
   },
 
   // ==========================================================================
-  // Non-EVM Networks (planned support)
+  // Layer 2 Networks
   // ==========================================================================
-  
+
+  base: {
+    name: 'Base',
+    chainType: 'evm',
+    chainId: 8453,
+    rpcUrl: process.env.RPC_URL_BASE || 'https://mainnet.base.org',
+    nativeSymbol: 'ETH',
+    nativeDecimals: 18,
+    blockExplorer: 'https://basescan.org',
+    tokens: [
+      { symbol: 'USDC', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
+      { symbol: 'USDbC', address: '0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA', decimals: 6 },
+      { symbol: 'cbETH', address: '0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22', decimals: 18 },
+      { symbol: 'DAI', address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', decimals: 18 },
+    ],
+  },
+
+  arbitrum: {
+    name: 'Arbitrum One',
+    chainType: 'evm',
+    chainId: 42161,
+    rpcUrl: process.env.RPC_URL_ARBITRUM || 'https://arb1.arbitrum.io/rpc',
+    nativeSymbol: 'ETH',
+    nativeDecimals: 18,
+    blockExplorer: 'https://arbiscan.io',
+    tokens: [
+      { symbol: 'USDC', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
+      { symbol: 'USDT', address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6 },
+      { symbol: 'ARB', address: '0x912CE59144191C1204E64559FE8253a0e49E6548', decimals: 18 },
+      { symbol: 'GMX', address: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a', decimals: 18 },
+      { symbol: 'WETH', address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', decimals: 18 },
+    ],
+  },
+
+  optimism: {
+    name: 'Optimism',
+    chainType: 'evm',
+    chainId: 10,
+    rpcUrl: process.env.RPC_URL_OPTIMISM || 'https://mainnet.optimism.io',
+    nativeSymbol: 'ETH',
+    nativeDecimals: 18,
+    blockExplorer: 'https://optimistic.etherscan.io',
+    tokens: [
+      { symbol: 'USDC', address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', decimals: 6 },
+      { symbol: 'USDT', address: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58', decimals: 6 },
+      { symbol: 'OP', address: '0x4200000000000000000000000000000000000042', decimals: 18 },
+      { symbol: 'SNX', address: '0x8700dAec35aF8Ff88c16BdF0418774CB3D7599B4', decimals: 18 },
+      { symbol: 'WETH', address: '0x4200000000000000000000000000000000000006', decimals: 18 },
+    ],
+  },
+
+  // ==========================================================================
+  // Solana Networks
+  // ==========================================================================
+
+  solana: {
+    name: 'Solana Mainnet',
+    chainType: 'solana',
+    chainId: null,
+    rpcUrl: process.env.RPC_URL_SOLANA || 'https://api.mainnet-beta.solana.com',
+    nativeSymbol: 'SOL',
+    nativeDecimals: 9,
+    blockExplorer: 'https://explorer.solana.com',
+    tokens: [
+      // Popular Solana SPL tokens
+      { symbol: 'USDC', mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 },
+      { symbol: 'BONK', mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', decimals: 5 },
+      { symbol: 'JUP', mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', decimals: 6 },
+    ],
+  },
+
   /**
-   * Helium Network
+   * Helium Network (on Solana)
    * 
-   * NOTE: Helium migrated from its own L1 to Solana in April 2023.
-   * The HNT, MOBILE, and IOT tokens now live on Solana as SPL tokens.
+   * Helium migrated from its own L1 to Solana in April 2023.
+   * The HNT, MOBILE, and IOT tokens are now SPL tokens on Solana.
    * 
-   * To support Helium ecosystem tokens, we need to:
-   * 1. Add Solana RPC support (using @solana/web3.js)
-   * 2. Query SPL token balances for HNT, MOBILE, IOT
-   * 3. Integrate with Helium-specific APIs for hotspot rewards tracking
-   * 
-   * Relevant addresses on Solana:
-   * - HNT:    hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux
-   * - MOBILE: mb1eu7TzEc71KxDpsmsKoucSSuuoGLv1drys1oP2jh6
-   * - IOT:    iotEVVZLEywoTn1QdwNPddxPWszn3zFhEot3MfL9fns
-   * 
-   * For Nebra hotspot operators, this would enable:
+   * For Nebra hotspot operators, this enables:
    * - Tracking mining rewards over time
    * - Monitoring HNT/MOBILE/IOT earning rates
    * - Correlating rewards with network coverage data
@@ -85,23 +154,40 @@ const networks = {
    */
   helium: {
     name: 'Helium (Solana)',
-    chainId: null, // Non-EVM; Solana-based
+    chainType: 'solana',
+    chainId: null,
     rpcUrl: process.env.RPC_URL_SOLANA || 'https://api.mainnet-beta.solana.com',
-    nativeSymbol: 'HNT',
+    nativeSymbol: 'SOL',  // Native is still SOL, HNT is a token
+    nativeDecimals: 9,
     blockExplorer: 'https://explorer.solana.com',
-    isEVM: false,
-    supported: false, // Placeholder - requires Solana integration
+    // Helium ecosystem tokens
     tokens: [
       { symbol: 'HNT', mint: 'hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux', decimals: 8 },
       { symbol: 'MOBILE', mint: 'mb1eu7TzEc71KxDpsmsKoucSSuuoGLv1drys1oP2jh6', decimals: 6 },
       { symbol: 'IOT', mint: 'iotEVVZLEywoTn1QdwNPddxPWszn3zFhEot3MfL9fns', decimals: 6 },
+      { symbol: 'DC', mint: 'dcuc8Amr83Wz27ZkQ2K9NS6r8zRpf1J6cvArEBDZDmm', decimals: 0 }, // Data Credits
     ],
+  },
+
+  'solana-devnet': {
+    name: 'Solana Devnet',
+    chainType: 'solana',
+    chainId: null,
+    rpcUrl: process.env.RPC_URL_SOLANA_DEVNET || 'https://api.devnet.solana.com',
+    nativeSymbol: 'SOL',
+    nativeDecimals: 9,
+    blockExplorer: 'https://explorer.solana.com',
+    tokens: [],
   },
 };
 
+// ==========================================================================
+// Helper Functions
+// ==========================================================================
+
 /**
  * Get network configuration by key.
- * @param {string} networkKey - Network identifier (mainnet, polygon, sepolia, helium)
+ * @param {string} networkKey - Network identifier
  * @returns {object|null} Network config or null if not found
  */
 function getNetwork(networkKey) {
@@ -110,39 +196,39 @@ function getNetwork(networkKey) {
 }
 
 /**
- * Check if a network is EVM-compatible and currently supported.
- * @param {object} networkConfig - Network configuration object
- * @returns {boolean} True if EVM and supported
- */
-function isEVMSupported(networkConfig) {
-  if (!networkConfig) return false;
-  // If isEVM is explicitly false, it's not EVM
-  if (networkConfig.isEVM === false) return false;
-  // If supported is explicitly false, it's not ready yet
-  if (networkConfig.supported === false) return false;
-  return true;
-}
-
-/**
- * Get list of all supported network keys.
- * @returns {string[]} Array of network keys
+ * Get list of all network keys.
+ * @returns {string[]}
  */
 function getSupportedNetworks() {
   return Object.keys(networks);
 }
 
 /**
- * Get list of EVM-supported network keys only.
- * @returns {string[]} Array of supported EVM network keys
+ * Get networks filtered by chain type.
+ * @param {string} chainType - 'evm' or 'solana'
+ * @returns {string[]} Network keys matching the chain type
  */
-function getEVMNetworks() {
-  return Object.keys(networks).filter(key => isEVMSupported(networks[key]));
+function getNetworksByType(chainType) {
+  return Object.keys(networks).filter(
+    key => networks[key].chainType === chainType
+  );
+}
+
+/**
+ * Get chain type for a network.
+ * @param {string} networkKey - Network key
+ * @returns {string|null} Chain type or null
+ */
+function getChainType(networkKey) {
+  const network = getNetwork(networkKey);
+  return network?.chainType || null;
 }
 
 module.exports = {
   networks,
   getNetwork,
   getSupportedNetworks,
-  getEVMNetworks,
-  isEVMSupported,
+  getNetworksByType,
+  getChainType,
 };
+
