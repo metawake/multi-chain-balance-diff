@@ -130,6 +130,58 @@ mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 
 ---
 
+## Exit Codes & Batch Semantics
+
+| Code | Meaning | When |
+|------|---------|------|
+| `0` | OK | No threshold triggered, all queries succeeded |
+| `1` | Diff triggered | Threshold condition matched (any address) |
+| `2` | RPC error | Network/connection failure |
+| `130` | SIGINT | User interrupted (Ctrl+C) |
+
+**Batch mode (`--addresses`)**: Returns exit `1` if *any* address triggers the threshold. Partial failures are included in JSON output with `error` field per address; successful queries still return data.
+
+---
+
+## Common Failure Modes
+
+### RPC Rate Limits
+
+Public RPCs have strict rate limits. Symptoms: `429 Too Many Requests` or slow responses.
+
+```bash
+# Solution: Use a private RPC (Alchemy, Infura, QuickNode)
+export ETH_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+```
+
+### Unavailable Chain / RPC Down
+
+```json
+{"schemaVersion":"0.1.0","error":"connect ECONNREFUSED 127.0.0.1:8545","code":"ECONNREFUSED","exitCode":2}
+```
+
+Exit code `2` indicates RPC failure. Check network connectivity and RPC URL validity.
+
+### Invalid Address Format
+
+```bash
+$ mcbd --address invalid --network mainnet --json
+{"schemaVersion":"0.1.0","error":"Invalid EVM address: invalid"}
+```
+
+EVM addresses must be `0x` + 40 hex chars. Solana addresses are base58 encoded.
+
+### Missing Environment Variables
+
+If using custom RPC endpoints via env vars, ensure they're set before running:
+
+```bash
+# Check if RPC env is set
+[ -z "$ETH_RPC_URL" ] && echo "Warning: Using public RPC (rate limited)"
+```
+
+---
+
 ## Watch Mode for CI/Cron
 
 Watch mode is designed for long-running monitoring, cron jobs, and CI pipelines.
