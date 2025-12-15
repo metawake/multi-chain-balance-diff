@@ -20,6 +20,11 @@ const os = require('os');
 const { getNetwork, getSupportedNetworks, getNetworksByType } = require('./config/networks');
 const { createAdapter } = require('./adapters');
 
+// Read version from package.json (single source of truth)
+const pkg = require('../package.json');
+const VERSION = pkg.version;
+const SCHEMA_VERSION = '0.1.0';
+
 // ==========================================================================
 // Exit Codes (CI-friendly)
 // ==========================================================================
@@ -27,6 +32,7 @@ const { createAdapter } = require('./adapters');
 const EXIT_OK = 0;           // No diff detected (or below threshold)
 const EXIT_DIFF = 1;         // Diff detected (above threshold)
 const EXIT_RPC_ERROR = 2;    // RPC/connection failure
+const EXIT_SIGINT = 130;     // Interrupted by Ctrl+C
 
 // ==========================================================================
 // CLI Configuration
@@ -35,7 +41,7 @@ const EXIT_RPC_ERROR = 2;    // RPC/connection failure
 program
   .name('multi-chain-balance-diff')
   .description('Fetch wallet balances and compute diffs across EVM and Solana chains')
-  .version('0.4.0')
+  .version(VERSION)
   .option('-a, --address <address>', 'Wallet address to check')
   .option('-A, --addresses <addresses>', 'Multiple addresses (comma-separated or file path)')
   .option('-n, --network <network>', 'Network to query', 'mainnet')
@@ -45,9 +51,13 @@ program
   .option('--list-networks', 'List all supported networks')
   .option('-w, --watch', 'Watch mode: continuously monitor balance')
   .option('-i, --interval <seconds>', 'Watch interval in seconds', '30')
+  .option('-c, --count <n>', 'Exit after N polls (watch mode only)')
+  .option('--exit-on-error', 'Exit immediately on RPC failure (watch mode)')
+  .option('--exit-on-diff', 'Exit immediately when threshold triggers (watch mode)')
   .option('-p, --profile <name>', 'Use saved profile from config file')
   .option('--config <path>', 'Path to config file')
   .option('--alert-if-diff <threshold>', 'Exit 1 if diff exceeds threshold (e.g., ">0.01", ">=1", "<-0.5")')
+  .option('--alert-pct <threshold>', 'Exit 1 if diff exceeds % of balance (e.g., ">5", "<-10")')
   .parse(process.argv);
 
 const options = program.opts();
@@ -238,6 +248,19 @@ function parseThreshold(thresholdStr) {
 }
 
 /**
+ * Convert bigint to number for threshold comparisons.
+ * @param {bigint} raw - The raw value
+ * @param {number} decimals - Token decimals
+ * @returns {number}
+ */
+function bigintToNumber(raw, decimals) {
+  const divisor = BigInt(10 ** decimals);
+  const whole = Number(raw / divisor);
+  const fraction = Number(raw % divisor) / (10 ** decimals);
+  return whole + fraction;
+}
+
+/**
  * Check if diff triggers alert based on threshold
  * @param {bigint} diffRaw - The raw diff value
  * @param {number} decimals - Token decimals for conversion
@@ -247,17 +270,41 @@ function parseThreshold(thresholdStr) {
 function checkThreshold(diffRaw, decimals, threshold) {
   if (!threshold) return false;
   
-  // Convert bigint to number for comparison
-  const divisor = BigInt(10 ** decimals);
-  const whole = Number(diffRaw / divisor);
-  const fraction = Number(diffRaw % divisor) / (10 ** decimals);
-  const diffValue = whole + fraction;
+  const diffValue = bigintToNumber(diffRaw, decimals);
   
   switch (threshold.operator) {
     case '>':  return diffValue > threshold.value;
     case '>=': return diffValue >= threshold.value;
     case '<':  return diffValue < threshold.value;
     case '<=': return diffValue <= threshold.value;
+    default:   return false;
+  }
+}
+
+/**
+ * Check if diff triggers alert based on percentage threshold.
+ * @param {bigint} diffRaw - The raw diff value
+ * @param {bigint} previousRaw - The previous balance for percentage calc
+ * @param {number} decimals - Token decimals for conversion
+ * @param {object} threshold - Parsed threshold { operator, value } where value is %
+ * @returns {boolean} - true if alert should trigger
+ */
+function checkPercentageThreshold(diffRaw, previousRaw, decimals, threshold) {
+  if (!threshold) return false;
+  if (previousRaw === 0n) return false; // Avoid division by zero
+  
+  const diffValue = bigintToNumber(diffRaw, decimals);
+  const previousValue = bigintToNumber(previousRaw, decimals);
+  
+  if (previousValue === 0) return false;
+  
+  const percentChange = (diffValue / previousValue) * 100;
+  
+  switch (threshold.operator) {
+    case '>':  return percentChange > threshold.value;
+    case '>=': return percentChange >= threshold.value;
+    case '<':  return percentChange < threshold.value;
+    case '<=': return percentChange <= threshold.value;
     default:   return false;
   }
 }
@@ -269,6 +316,7 @@ function checkThreshold(diffRaw, decimals, threshold) {
 function listNetworks() {
   if (options.json) {
     const networks = {
+      schemaVersion: SCHEMA_VERSION,
       evm: getNetworksByType('evm').map(key => {
         const net = getNetwork(key);
         return { key, name: net.name, symbol: net.nativeSymbol, chainId: net.chainId };
@@ -311,6 +359,7 @@ function buildJsonOutput(networkConfig, address, balanceDiff, tokenBalances, ada
   const blockLabel = networkConfig.chainType === 'solana' ? 'slot' : 'block';
   
   return {
+    schemaVersion: SCHEMA_VERSION,
     network: {
       key: options.network,
       name: networkConfig.name,
@@ -345,6 +394,7 @@ function buildJsonOutput(networkConfig, address, balanceDiff, tokenBalances, ada
 
 function buildMultiAddressJsonOutput(networkConfig, results) {
   return {
+    schemaVersion: SCHEMA_VERSION,
     network: {
       key: options.network,
       name: networkConfig.name,
@@ -458,53 +508,232 @@ function printMultiAddressSummary(networkConfig, results, blocksBack) {
 // Watch Mode
 // ==========================================================================
 
+/**
+ * Build a single poll result for JSON output.
+ */
+function buildPollResult(networkConfig, address, balanceDiff, alertTriggered, error = null) {
+  if (error) {
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      timestamp: new Date().toISOString(),
+      address,
+      error: error.message || String(error),
+      isRpcError: isRpcError(error),
+    };
+  }
+  
+  const blockLabel = networkConfig.chainType === 'solana' ? 'slot' : 'block';
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    timestamp: new Date().toISOString(),
+    address,
+    [blockLabel]: balanceDiff.currentBlock,
+    balance: formatBigInt(balanceDiff.current.raw, networkConfig.nativeDecimals),
+    balanceRaw: balanceDiff.current.raw.toString(),
+    diff: formatBigInt(balanceDiff.diff < 0n ? -balanceDiff.diff : balanceDiff.diff, networkConfig.nativeDecimals),
+    diffRaw: balanceDiff.diff.toString(),
+    diffSign: balanceDiff.diff >= 0n ? 'positive' : 'negative',
+    alert: alertTriggered,
+  };
+}
+
+/**
+ * Check if an error is RPC-related.
+ */
+function isRpcError(error) {
+  return error.code === 'ENOTFOUND' || 
+         error.code === 'ECONNREFUSED' ||
+         error.code === 'ETIMEDOUT' ||
+         error.message?.includes('429') ||
+         error.message?.includes('rate') ||
+         error.message?.includes('timeout');
+}
+
+/**
+ * Watch mode: poll balances periodically with CI-friendly semantics.
+ * 
+ * Behavior:
+ * - Polls at --interval seconds
+ * - Exits after --count polls (if specified)
+ * - Exits immediately on threshold breach (if --exit-on-diff)
+ * - Exits immediately on RPC error (if --exit-on-error)
+ * - JSON mode outputs newline-delimited JSON (one object per poll)
+ * 
+ * Exit codes:
+ * - 0: Completed without threshold breach
+ * - 1: Threshold breached
+ * - 2: RPC error (with --exit-on-error)
+ * - 130: SIGINT
+ */
 async function watchMode(adapter, networkConfig, address, blocksBack) {
   const intervalMs = parseInt(options.interval, 10) * 1000;
+  const maxPolls = options.count ? parseInt(options.count, 10) : Infinity;
+  const exitOnError = options.exitOnError;
+  const exitOnDiff = options.exitOnDiff;
+  const threshold = parseThreshold(options.alertIfDiff);
+  const pctThreshold = parseThreshold(options.alertPct);
   
-  console.log();
-  console.log(`🔄 ${c('bright')}Watch mode${c('reset')} — monitoring ${address.slice(0, 8)}...${address.slice(-6)}`);
-  console.log(`   Network: ${networkConfig.name}`);
-  console.log(`   Interval: ${options.interval}s`);
-  console.log(`   Press Ctrl+C to exit`);
-  console.log();
-  printSeparator('─');
-  
+  let pollCount = 0;
   let lastBalance = null;
+  let shouldExit = false;
+  let exitCode = EXIT_OK;
+  let intervalId = null;
+  
+  // JSON mode: output watch metadata at start
+  if (options.json) {
+    const meta = {
+      schemaVersion: SCHEMA_VERSION,
+      type: 'watch_start',
+      timestamp: new Date().toISOString(),
+      network: options.network,
+      address,
+      interval: parseInt(options.interval, 10),
+      count: options.count ? parseInt(options.count, 10) : null,
+      threshold: options.alertIfDiff || null,
+      thresholdPct: options.alertPct || null,
+    };
+    console.log(JSON.stringify(meta));
+  } else {
+    console.log();
+    console.log(`🔄 ${c('bright')}Watch mode${c('reset')} — monitoring ${address.slice(0, 8)}...${address.slice(-6)}`);
+    console.log(`   Network: ${networkConfig.name}`);
+    console.log(`   Interval: ${options.interval}s`);
+    if (maxPolls !== Infinity) {
+      console.log(`   Count: ${maxPolls} polls`);
+    }
+    if (threshold) {
+      console.log(`   Threshold: ${options.alertIfDiff}`);
+    }
+    if (pctThreshold) {
+      console.log(`   Threshold (%): ${options.alertPct}`);
+    }
+    console.log(`   Press Ctrl+C to exit`);
+    console.log();
+    printSeparator('─');
+  }
   
   const tick = async () => {
+    pollCount++;
+    
     try {
       const balanceDiff = await adapter.getNativeBalanceDiff(address, blocksBack);
-      const currentBalance = formatBigInt(balanceDiff.current.raw, networkConfig.nativeDecimals);
-      const diff = formatDiffColored(balanceDiff.diff, networkConfig.nativeSymbol, networkConfig.nativeDecimals);
       
-      let changeIndicator = '';
-      if (lastBalance !== null && balanceDiff.current.raw !== lastBalance) {
-        const delta = balanceDiff.current.raw - lastBalance;
-        const deltaFormatted = formatBigInt(delta < 0n ? -delta : delta, networkConfig.nativeDecimals);
-        const sign = delta >= 0n ? '+' : '-';
-        const color = delta >= 0n ? c('green') : c('red');
-        changeIndicator = ` ${color}(${sign}${deltaFormatted} since last check)${c('reset')}`;
+      // Check absolute threshold
+      const absTriggered = checkThreshold(
+        balanceDiff.diff, 
+        networkConfig.nativeDecimals, 
+        threshold
+      );
+      
+      // Check percentage threshold
+      const pctTriggered = checkPercentageThreshold(
+        balanceDiff.diff,
+        balanceDiff.previous.raw,
+        networkConfig.nativeDecimals,
+        pctThreshold
+      );
+      
+      const alertTriggered = absTriggered || pctTriggered;
+      
+      if (options.json) {
+        // Newline-delimited JSON for streaming
+        const result = buildPollResult(networkConfig, address, balanceDiff, alertTriggered);
+        result.poll = pollCount;
+        console.log(JSON.stringify(result));
+      } else {
+        // Pretty output
+        const currentBalance = formatBigInt(balanceDiff.current.raw, networkConfig.nativeDecimals);
+        const diff = formatDiffColored(balanceDiff.diff, networkConfig.nativeSymbol, networkConfig.nativeDecimals);
+        
+        let changeIndicator = '';
+        if (lastBalance !== null && balanceDiff.current.raw !== lastBalance) {
+          const delta = balanceDiff.current.raw - lastBalance;
+          const deltaFormatted = formatBigInt(delta < 0n ? -delta : delta, networkConfig.nativeDecimals);
+          const sign = delta >= 0n ? '+' : '-';
+          const color = delta >= 0n ? c('green') : c('red');
+          changeIndicator = ` ${color}(${sign}${deltaFormatted} since last)${c('reset')}`;
+        }
+        
+        const alertIndicator = alertTriggered ? ` ${c('yellow')}⚠ ALERT${c('reset')}` : '';
+        console.log(`  [${formatTimestamp()}] ${currentBalance} ${networkConfig.nativeSymbol}  Δ${blocksBack}: ${diff}${changeIndicator}${alertIndicator}`);
       }
+      
       lastBalance = balanceDiff.current.raw;
       
-      console.log(`  [${formatTimestamp()}] ${currentBalance} ${networkConfig.nativeSymbol}  Δ${blocksBack}: ${diff}${changeIndicator}`);
+      // Exit on diff if threshold triggered
+      if (alertTriggered && exitOnDiff) {
+        shouldExit = true;
+        exitCode = EXIT_DIFF;
+      }
+      
+      // Track if any poll triggered threshold (for final exit code)
+      if (alertTriggered) {
+        exitCode = EXIT_DIFF;
+      }
+      
     } catch (error) {
-      console.log(`  [${formatTimestamp()}] ${c('red')}Error: ${error.message}${c('reset')}`);
+      if (options.json) {
+        const result = buildPollResult(networkConfig, address, null, false, error);
+        result.poll = pollCount;
+        console.log(JSON.stringify(result));
+      } else {
+        console.log(`  [${formatTimestamp()}] ${c('red')}Error: ${error.message}${c('reset')}`);
+      }
+      
+      if (exitOnError && isRpcError(error)) {
+        shouldExit = true;
+        exitCode = EXIT_RPC_ERROR;
+      }
+    }
+    
+    // Check if we've reached max polls
+    if (pollCount >= maxPolls) {
+      shouldExit = true;
+    }
+    
+    if (shouldExit) {
+      if (intervalId) clearInterval(intervalId);
+      if (options.json) {
+        console.log(JSON.stringify({ 
+          schemaVersion: SCHEMA_VERSION,
+          type: 'watch_end', 
+          timestamp: new Date().toISOString(),
+          polls: pollCount, 
+          exitCode 
+        }));
+      } else {
+        console.log();
+        console.log(`👋 Watch mode stopped. (${pollCount} polls, exit ${exitCode})`);
+      }
+      process.exit(exitCode);
     }
   };
   
   // Initial tick
   await tick();
   
-  // Set up interval
-  const intervalId = setInterval(tick, intervalMs);
+  // Set up interval (only if not exiting)
+  if (!shouldExit) {
+    intervalId = setInterval(tick, intervalMs);
+  }
   
   // Handle graceful shutdown
   process.on('SIGINT', () => {
-    clearInterval(intervalId);
-    console.log();
-    console.log(`\n👋 Watch mode stopped.`);
-    process.exit(0);
+    if (intervalId) clearInterval(intervalId);
+    if (options.json) {
+      console.log(JSON.stringify({ 
+        schemaVersion: SCHEMA_VERSION,
+        type: 'watch_end', 
+        timestamp: new Date().toISOString(),
+        polls: pollCount, 
+        exitCode: EXIT_SIGINT,
+        reason: 'SIGINT'
+      }));
+    } else {
+      console.log();
+      console.log(`\n👋 Watch mode stopped. (interrupted)`);
+    }
+    process.exit(EXIT_SIGINT);
   });
   
   // Keep process alive
@@ -555,7 +784,7 @@ async function main() {
   const networkConfig = getNetwork(network);
   if (!networkConfig) {
     if (options.json) {
-      console.log(JSON.stringify({ error: `Unknown network: ${network}` }));
+      console.log(JSON.stringify({ schemaVersion: SCHEMA_VERSION, error: `Unknown network: ${network}` }));
     } else {
       console.error(`\n❌ Unknown network: ${network}`);
       console.error(`   Run with --list-networks to see available options.\n`);
@@ -566,7 +795,7 @@ async function main() {
   // Validate blocks parameter
   if (isNaN(blocksBack) || blocksBack < 1) {
     if (options.json) {
-      console.log(JSON.stringify({ error: `Invalid blocks value: ${blocks}` }));
+      console.log(JSON.stringify({ schemaVersion: SCHEMA_VERSION, error: `Invalid blocks value: ${blocks}` }));
     } else {
       console.error(`\n❌ Invalid blocks value: ${blocks}`);
       console.error('   Please provide a positive integer.\n');
@@ -581,7 +810,7 @@ async function main() {
   for (const addr of addresses) {
     if (!adapter.isValidAddress(addr)) {
       if (options.json) {
-        console.log(JSON.stringify({ error: `Invalid ${networkConfig.chainType.toUpperCase()} address: ${addr}` }));
+        console.log(JSON.stringify({ schemaVersion: SCHEMA_VERSION, error: `Invalid ${networkConfig.chainType.toUpperCase()} address: ${addr}` }));
       } else {
         console.error(`\n❌ Invalid ${networkConfig.chainType.toUpperCase()} address: ${addr}`);
         if (networkConfig.chainType === 'evm') {
@@ -605,7 +834,7 @@ async function main() {
     await adapter.connect();
   } catch (error) {
     if (options.json) {
-      console.log(JSON.stringify({ error: `Connection failed: ${error.message}`, exitCode: EXIT_RPC_ERROR }));
+      console.log(JSON.stringify({ schemaVersion: SCHEMA_VERSION, error: `Connection failed: ${error.message}`, exitCode: EXIT_RPC_ERROR }));
     } else {
       console.error(`\n❌ Could not connect to ${networkConfig.name}`);
       console.error(`   ${error.message}\n`);
@@ -636,14 +865,23 @@ async function main() {
 
     // Check threshold for any address
     const threshold = parseThreshold(options.alertIfDiff);
+    const pctThreshold = parseThreshold(options.alertPct);
     let anyAlertTriggered = false;
     
-    if (threshold) {
-      for (const r of results) {
-        if (!r.error && checkThreshold(r.balanceDiff.diff, networkConfig.nativeDecimals, threshold)) {
-          anyAlertTriggered = true;
-          break;
-        }
+    for (const r of results) {
+      if (r.error) continue;
+      
+      const absTriggered = checkThreshold(r.balanceDiff.diff, networkConfig.nativeDecimals, threshold);
+      const pctTriggered = checkPercentageThreshold(
+        r.balanceDiff.diff,
+        r.balanceDiff.previous.raw,
+        networkConfig.nativeDecimals,
+        pctThreshold
+      );
+      
+      if (absTriggered || pctTriggered) {
+        anyAlertTriggered = true;
+        break;
       }
     }
 
@@ -653,22 +891,37 @@ async function main() {
           return { address: r.address, error: r.error };
         }
         const item = buildJsonOutput(networkConfig, r.address, r.balanceDiff, r.tokenBalances, adapter);
-        if (threshold) {
+        
+        const absTriggered = checkThreshold(r.balanceDiff.diff, networkConfig.nativeDecimals, threshold);
+        const pctTriggered = checkPercentageThreshold(
+          r.balanceDiff.diff,
+          r.balanceDiff.previous.raw,
+          networkConfig.nativeDecimals,
+          pctThreshold
+        );
+        
+        if (threshold || pctThreshold) {
           item.alert = {
-            threshold: options.alertIfDiff,
-            triggered: checkThreshold(r.balanceDiff.diff, networkConfig.nativeDecimals, threshold),
+            threshold: options.alertIfDiff || null,
+            thresholdPct: options.alertPct || null,
+            triggered: absTriggered || pctTriggered,
           };
         }
         return item;
       }));
-      if (threshold) {
-        output.alert = { threshold: options.alertIfDiff, triggered: anyAlertTriggered };
+      if (threshold || pctThreshold) {
+        output.alert = { 
+          threshold: options.alertIfDiff || null, 
+          thresholdPct: options.alertPct || null,
+          triggered: anyAlertTriggered 
+        };
       }
       console.log(JSON.stringify(output, null, 2));
     } else {
       printMultiAddressSummary(networkConfig, results, blocksBack);
       if (anyAlertTriggered) {
-        console.log(`${c('yellow')}⚠️  Alert: diff ${options.alertIfDiff} triggered${c('reset')}\n`);
+        const which = options.alertIfDiff || (options.alertPct + '%');
+        console.log(`${c('yellow')}⚠️  Alert: threshold ${which} triggered${c('reset')}\n`);
       }
     }
     
@@ -698,17 +951,28 @@ async function main() {
       tokenBalances = await adapter.getTokenBalances(address, networkConfig.tokens);
     }
 
-    // Check threshold if specified
+    // Check thresholds if specified
     const threshold = parseThreshold(options.alertIfDiff);
-    const alertTriggered = checkThreshold(balanceDiff.diff, networkConfig.nativeDecimals, threshold);
+    const pctThreshold = parseThreshold(options.alertPct);
+    
+    const absTriggered = checkThreshold(balanceDiff.diff, networkConfig.nativeDecimals, threshold);
+    const pctTriggered = checkPercentageThreshold(
+      balanceDiff.diff,
+      balanceDiff.previous.raw,
+      networkConfig.nativeDecimals,
+      pctThreshold
+    );
+    const alertTriggered = absTriggered || pctTriggered;
 
     // Output results
     if (options.json) {
       const output = buildJsonOutput(networkConfig, address, balanceDiff, tokenBalances, adapter);
-      if (threshold) {
+      if (threshold || pctThreshold) {
         output.alert = {
-          threshold: options.alertIfDiff,
+          threshold: options.alertIfDiff || null,
+          thresholdPct: options.alertPct || null,
           triggered: alertTriggered,
+          triggeredBy: absTriggered ? 'absolute' : pctTriggered ? 'percentage' : null,
         };
       }
       console.log(JSON.stringify(output, null, 2));
@@ -716,7 +980,8 @@ async function main() {
       printPrettyOutput(networkConfig, address, balanceDiff, tokenBalances, adapter, blocksBack);
       
       if (alertTriggered) {
-        console.log(`${c('yellow')}⚠️  Alert: diff ${options.alertIfDiff} triggered${c('reset')}\n`);
+        const which = absTriggered ? options.alertIfDiff : options.alertPct + '%';
+        console.log(`${c('yellow')}⚠️  Alert: threshold ${which} triggered${c('reset')}\n`);
       }
     }
 
@@ -733,6 +998,7 @@ async function main() {
 
     if (options.json) {
       console.log(JSON.stringify({ 
+        schemaVersion: SCHEMA_VERSION,
         error: error.message,
         code: error.code || null,
         exitCode: isRpcError ? EXIT_RPC_ERROR : EXIT_DIFF,
