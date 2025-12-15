@@ -1,6 +1,6 @@
 {
   "name": "multi-chain-balance-diff",
-  "version": "0.4.0",
+  "version": "0.1.0",
   "description": "CLI tool to fetch and compare wallet balances across EVM and Solana chains",
   "main": "src/index.js",
   "bin": {
@@ -8,6 +8,10 @@
     "mcbd": "./src/index.js",
     "balance-diff": "./src/index.js"
   },
+  "files": [
+    "src/",
+    "schema/"
+  ],
   "scripts": {
     "start": "node src/index.js",
     "test": "node --test 'tests/*.test.js'"

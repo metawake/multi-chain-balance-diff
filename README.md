@@ -1,6 +1,5 @@
 # multi-chain-balance-diff
 
-[![npm version](https://img.shields.io/npm/v/multi-chain-balance-diff)](https://www.npmjs.com/package/multi-chain-balance-diff)
 [![Tests](https://github.com/metawake/multi-chain-balance-diff/actions/workflows/test.yml/badge.svg)](https://github.com/metawake/multi-chain-balance-diff/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
@@ -58,6 +57,12 @@ mcbd --address $STAKER --network mainnet --blocks 1000 --json \
 
 ```bash
 npm install -g multi-chain-balance-diff
+```
+
+**One-shot (no install):**
+
+```bash
+npx multi-chain-balance-diff -a 0x... -n mainnet --json
 ```
 
 ---

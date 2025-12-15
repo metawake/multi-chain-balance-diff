@@ -70,7 +70,7 @@ describe('CLI Validation', () => {
 
   it('--version shows version', () => {
     const output = execSync(`node ${CLI_PATH} --version`, { encoding: 'utf8' });
-    assert.match(output.trim(), /^\d+\.\d+\.\d+$/, 'Should be semver format');
+    assert.match(output.trim(), /^\d+\.\d+\.\d+(-[\w.]+)?$/, 'Should be semver format');
   });
 
   it('--help shows help', () => {
