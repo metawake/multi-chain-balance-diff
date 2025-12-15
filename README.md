@@ -116,6 +116,16 @@ src/
 
 Adding a chain: extend `BaseAdapter`, add config to `networks.js`, register in `adapters/index.js`.
 
+## Stability Guarantee
+
+**Stability over features.** If output changes every version → no adoption.
+
+- JSON output format is **locked** — breaking changes = major version bump
+- Chain adapter interface is **stable** — extend without breaking existing adapters
+- Core primitive first, extras later
+
+This is Phase 0: make the tool undeniable before expanding surface area.
+
 ## License
 
 MIT
