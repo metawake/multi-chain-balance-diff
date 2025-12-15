@@ -1,0 +1,297 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/metawake/multi-chain-balance-diff/schema/mcbd-output.schema.json",
+  "title": "multi-chain-balance-diff Output Schema",
+  "description": "JSON output schema for the mcbd CLI tool",
+  
+  "oneOf": [
+    { "$ref": "#/definitions/BalanceResult" },
+    { "$ref": "#/definitions/MultiAddressResult" },
+    { "$ref": "#/definitions/ErrorResult" },
+    { "$ref": "#/definitions/WatchStart" },
+    { "$ref": "#/definitions/WatchPoll" },
+    { "$ref": "#/definitions/WatchEnd" }
+  ],
+
+  "definitions": {
+    "BalanceResult": {
+      "type": "object",
+      "description": "Single address balance diff result",
+      "required": ["schemaVersion", "network", "address", "native", "timestamp"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "description": "Schema version (semver)",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "network": { "$ref": "#/definitions/NetworkInfo" },
+        "address": {
+          "type": "string",
+          "description": "Wallet address"
+        },
+        "explorer": {
+          "type": "string",
+          "format": "uri",
+          "description": "Block explorer URL for address"
+        },
+        "block": { "$ref": "#/definitions/BlockRange" },
+        "slot": { "$ref": "#/definitions/BlockRange" },
+        "native": { "$ref": "#/definitions/NativeBalance" },
+        "tokens": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TokenBalance" }
+        },
+        "alert": { "$ref": "#/definitions/AlertInfo" },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+
+    "MultiAddressResult": {
+      "type": "object",
+      "description": "Multi-address batch result",
+      "required": ["schemaVersion", "network", "addresses", "summary", "timestamp"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "network": { "$ref": "#/definitions/NetworkInfo" },
+        "addresses": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BalanceResult" }
+        },
+        "summary": {
+          "type": "object",
+          "properties": {
+            "totalAddresses": { "type": "integer" },
+            "successCount": { "type": "integer" },
+            "errorCount": { "type": "integer" }
+          },
+          "required": ["totalAddresses", "successCount", "errorCount"]
+        },
+        "alert": { "$ref": "#/definitions/AlertInfo" },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+
+    "ErrorResult": {
+      "type": "object",
+      "description": "Error response",
+      "required": ["schemaVersion", "error"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message"
+        },
+        "code": {
+          "type": ["string", "null"],
+          "description": "Error code (e.g., ECONNREFUSED)"
+        },
+        "exitCode": {
+          "type": "integer",
+          "description": "Process exit code"
+        }
+      }
+    },
+
+    "WatchStart": {
+      "type": "object",
+      "description": "Watch mode start event (NDJSON)",
+      "required": ["schemaVersion", "type", "timestamp", "network", "address", "interval"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "type": {
+          "const": "watch_start"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "network": { "type": "string" },
+        "address": { "type": "string" },
+        "interval": { "type": "integer" },
+        "count": { "type": ["integer", "null"] },
+        "threshold": { "type": ["string", "null"] },
+        "thresholdPct": { "type": ["string", "null"] }
+      }
+    },
+
+    "WatchPoll": {
+      "type": "object",
+      "description": "Watch mode poll event (NDJSON)",
+      "required": ["schemaVersion", "timestamp", "address"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "address": { "type": "string" },
+        "block": { "type": "integer" },
+        "slot": { "type": "integer" },
+        "balance": { "type": "string" },
+        "balanceRaw": { "type": "string" },
+        "diff": { "type": "string" },
+        "diffRaw": { "type": "string" },
+        "diffSign": {
+          "type": "string",
+          "enum": ["positive", "negative"]
+        },
+        "alert": { "type": "boolean" },
+        "poll": { "type": "integer" },
+        "error": { "type": "string" },
+        "isRpcError": { "type": "boolean" }
+      }
+    },
+
+    "WatchEnd": {
+      "type": "object",
+      "description": "Watch mode end event (NDJSON)",
+      "required": ["schemaVersion", "type", "timestamp", "polls", "exitCode"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "type": {
+          "const": "watch_end"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "polls": { "type": "integer" },
+        "exitCode": { "type": "integer" },
+        "reason": { "type": "string" }
+      }
+    },
+
+    "NetworkInfo": {
+      "type": "object",
+      "required": ["key", "name", "chainType"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Network identifier (e.g., mainnet, polygon, solana)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable network name"
+        },
+        "chainType": {
+          "type": "string",
+          "enum": ["evm", "solana"]
+        },
+        "chainId": {
+          "type": "integer",
+          "description": "EVM chain ID (null for Solana)"
+        }
+      }
+    },
+
+    "BlockRange": {
+      "type": "object",
+      "required": ["current", "previous"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "description": "Current block/slot number"
+        },
+        "previous": {
+          "type": "integer",
+          "description": "Previous block/slot for diff comparison"
+        }
+      }
+    },
+
+    "NativeBalance": {
+      "type": "object",
+      "required": ["symbol", "decimals", "balance", "balanceRaw", "diff", "diffRaw", "diffSign"],
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "description": "Native token symbol (ETH, MATIC, SOL, etc.)"
+        },
+        "decimals": {
+          "type": "integer",
+          "description": "Token decimals"
+        },
+        "balance": {
+          "type": "string",
+          "description": "Formatted current balance"
+        },
+        "balanceRaw": {
+          "type": "string",
+          "description": "Raw balance in smallest unit (wei, lamports, etc.)"
+        },
+        "diff": {
+          "type": "string",
+          "description": "Absolute value of balance difference (formatted)"
+        },
+        "diffRaw": {
+          "type": "string",
+          "description": "Raw diff value (signed)"
+        },
+        "diffSign": {
+          "type": "string",
+          "enum": ["positive", "negative"]
+        }
+      }
+    },
+
+    "TokenBalance": {
+      "type": "object",
+      "required": ["symbol", "decimals", "balance", "balanceRaw"],
+      "properties": {
+        "symbol": { "type": "string" },
+        "address": {
+          "type": "string",
+          "description": "Token contract address (EVM) or mint (Solana)"
+        },
+        "decimals": { "type": "integer" },
+        "balance": { "type": "string" },
+        "balanceRaw": { "type": "string" }
+      }
+    },
+
+    "AlertInfo": {
+      "type": "object",
+      "properties": {
+        "threshold": {
+          "type": ["string", "null"],
+          "description": "Absolute threshold (e.g., >0.01)"
+        },
+        "thresholdPct": {
+          "type": ["string", "null"],
+          "description": "Percentage threshold (e.g., >5)"
+        },
+        "triggered": {
+          "type": "boolean",
+          "description": "Whether alert condition was met"
+        },
+        "triggeredBy": {
+          "type": ["string", "null"],
+          "enum": ["absolute", "percentage", null]
+        }
+      },
+      "required": ["triggered"]
+    }
+  }
+}
+
