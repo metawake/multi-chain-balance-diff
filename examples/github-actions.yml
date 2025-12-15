@@ -1,0 +1,100 @@
+# GitHub Actions workflow example for multi-chain-balance-diff
+#
+# This workflow runs balance checks on a schedule and fails if thresholds are triggered.
+# Copy to .github/workflows/balance-check.yml in your repo.
+#
+# Features:
+# - Runs hourly (configurable)
+# - Fails CI when balance diff exceeds threshold
+# - Uses pinned version for reproducibility
+# - Stores JSON output as artifact for debugging
+
+name: Balance Monitor
+
+on:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    # Allow manual triggers
+    inputs:
+      address:
+        description: 'Wallet address to check'
+        required: false
+        default: ''
+
+env:
+  # Pin to specific version for reproducibility
+  MCBD_VERSION: '0.5.0'
+  # Default address (override with secret or input)
+  WALLET_ADDRESS: ${{ github.event.inputs.address || secrets.WALLET_ADDRESS }}
+
+jobs:
+  balance-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install multi-chain-balance-diff
+        run: npm install -g multi-chain-balance-diff@${{ env.MCBD_VERSION }}
+
+      - name: Check balance (mainnet)
+        id: balance
+        run: |
+          # Run balance check, capture output
+          # Exit 1 = threshold triggered, Exit 2 = RPC error
+          mcbd \
+            --address "$WALLET_ADDRESS" \
+            --network mainnet \
+            --alert-if-diff "<-0.1" \
+            --json > balance-result.json
+        env:
+          # Optional: Use private RPC for reliability
+          # ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+
+      - name: Upload result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: balance-result
+          path: balance-result.json
+          retention-days: 7
+
+      - name: Parse and display result
+        if: always()
+        run: |
+          echo "=== Balance Check Result ==="
+          cat balance-result.json | jq '.'
+          echo ""
+          echo "Native balance: $(cat balance-result.json | jq -r '.native.balance') $(cat balance-result.json | jq -r '.native.symbol')"
+          echo "Diff: $(cat balance-result.json | jq -r '.native.diffSign') $(cat balance-result.json | jq -r '.native.diff')"
+
+  # Optional: Multi-network check
+  multi-network-check:
+    runs-on: ubuntu-latest
+    if: false  # Set to true to enable
+    strategy:
+      matrix:
+        network: [mainnet, base, polygon]
+    
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and check
+        run: |
+          npm install -g multi-chain-balance-diff@${{ env.MCBD_VERSION }}
+          mcbd \
+            --address "$WALLET_ADDRESS" \
+            --network ${{ matrix.network }} \
+            --alert-if-diff "<-0.1" \
+            --json
+        env:
+          WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
+
