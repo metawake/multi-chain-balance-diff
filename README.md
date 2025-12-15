@@ -4,142 +4,134 @@
 [![Tests](https://github.com/metawake/multi-chain-balance-diff/actions/workflows/test.yml/badge.svg)](https://github.com/metawake/multi-chain-balance-diff/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-> **`diff` for crypto balances. CLI-first, JSON-native, automation-ready.**
-
-## Philosophy
-
-```
-┌──────────────────────────────────────────┐
-│              Heavy Analytics             │
-│  Nansen · Dune · Chainalysis             │
-│  expensive · dashboards · slow           │
-└──────────────────────────────────────────┘
-                    ▲
-┌──────────────────────────────────────────┐
-│         Portfolio Aggregators            │
-│  Zerion · DeBank · Zapper                │
-│  UI-first · not scriptable               │
-└──────────────────────────────────────────┘
-                    ▲
-┌──────────────────────────────────────────┐
-│    ➤ Lightweight Dev Observability       │
-│      multi-chain-balance-diff            │
-│      CLI · JSON · automation-first       │
-└──────────────────────────────────────────┘
-                    ▲
-┌──────────────────────────────────────────┐
-│          Raw Infrastructure              │
-│  RPCs · SDKs · Nodes · Indexers          │
-└──────────────────────────────────────────┘
-```
-
-**This tool answers one question: "What changed?"**
-
-Not *why* money moved. Just *what* changed. Like `diff`, `jq`, or `htop`—simple primitives that get reused everywhere.
-
-### What this is NOT
-
-- ❌ A portfolio tracker
-- ❌ A dashboard product  
-- ❌ A "smart money" analytics clone
-
-## Quick Start
+**Compare wallet balances across EVM and Solana chains. Returns structured diffs.**
 
 ```bash
-# No install required
-npx multi-chain-balance-diff --address 0xYourAddress --network mainnet
+mcbd --address 0x... --network mainnet --json | jq '.native.diff'
+```
 
-# Or install globally
+## What
+
+CLI that fetches balance at block N and block N-50, computes the difference, outputs JSON or pretty-prints. Supports Ethereum, Polygon, Base, Arbitrum, Optimism, Solana, Helium.
+
+## Who
+
+Infrastructure engineers, protocol developers, and operators who need scriptable balance checks without spinning up dashboards or paying for analytics platforms.
+
+## Why
+
+Portfolio trackers are UI-only. Analytics platforms are expensive and slow. Raw RPC calls require boilerplate. This fills the gap: a `diff`-like primitive for on-chain balances that fits into shell scripts, cron jobs, and CI pipelines.
+
+---
+
+## Use Cases
+
+### 1. Operations: Treasury monitoring
+
+```bash
+# Cron job: alert ops channel if treasury balance drops
+mcbd --address 0xTreasury --network mainnet --json \
+  | jq -e '.native.diffSign == "negative"' \
+  && curl -X POST $SLACK_WEBHOOK -d '{"text":"Treasury balance decreased"}'
+```
+
+### 2. CI/Monitoring: Post-deployment sanity check
+
+```bash
+# GitHub Actions: fail pipeline if fee wallet drained unexpectedly
+mcbd --address $FEE_WALLET --network base --alert-if-diff "<-0.1"
+# exit 0 = OK, exit 1 = threshold breached, exit 2 = RPC error
+```
+
+### 3. DeFi/Rewards: Staking reward accrual verification
+
+```bash
+# Verify staking rewards are accruing over 1000 blocks
+mcbd --address $STAKER --network mainnet --blocks 1000 --json \
+  | jq '.native.diff' 
+# Expected: positive value if rewards distributed
+```
+
+---
+
+## Install
+
+```bash
+npx multi-chain-balance-diff --address 0x... --network mainnet
+
+# or globally
 npm install -g multi-chain-balance-diff
-mcbd --address 0xYourAddress
+mcbd --address 0x...
 ```
 
 ## Usage
 
 ```bash
-# Check balance + diff over last 50 blocks
-mcbd --address 0x... --network mainnet
-
-# Multiple chains
-mcbd --address 0x... --network base
-mcbd --address 0x... --network arbitrum
-mcbd --address <SOLANA_ADDR> --network solana
-
-# JSON output (pipe to jq, use in CI)
-mcbd --address 0x... --json
-
-# Watch mode
-mcbd --address 0x... --watch --interval 30
-
-# Multiple addresses
-mcbd --addresses 0xAAA...,0xBBB... --network mainnet
-
-# CI: alert if balance changed by more than 0.01 ETH
-mcbd --address 0x... --alert-if-diff ">0.01" && echo "OK" || echo "ALERT"
+mcbd --address 0x... --network mainnet          # pretty output
+mcbd --address 0x... --json                     # structured output
+mcbd --address 0x... --blocks 1000              # custom lookback
+mcbd --address 0x... --watch --interval 30      # continuous monitoring
+mcbd --addresses 0xA,0xB,0xC --network base     # batch
+mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 ```
 
-## Supported Networks
+## Networks
 
-| Network | Type | Native | Tokens |
-|---------|------|--------|--------|
-| `mainnet` | EVM | ETH | USDC, USDT, stETH, ... |
-| `polygon` | EVM | MATIC | USDC, USDT, WETH, ... |
+| Key | Type | Native | Tokens |
+|-----|------|--------|--------|
+| `mainnet` | EVM | ETH | USDC, USDT, stETH |
+| `polygon` | EVM | MATIC | USDC, USDT, WETH |
 | `base` | EVM | ETH | USDC, cbETH, DAI |
 | `arbitrum` | EVM | ETH | USDC, ARB, GMX |
 | `optimism` | EVM | ETH | USDC, OP, SNX |
 | `solana` | Solana | SOL | USDC, BONK, JUP |
 | `helium` | Solana | SOL | HNT, MOBILE, IOT, DC |
 
-## CLI Options
+## Options
 
-| Option | Description |
-|--------|-------------|
+| Flag | Description |
+|------|-------------|
 | `-a, --address` | Wallet address |
-| `-A, --addresses` | Multiple addresses (comma-sep or file) |
-| `-n, --network` | Network (default: `mainnet`) |
-| `-b, --blocks` | Lookback range (default: `50`) |
-| `-w, --watch` | Real-time monitoring |
-| `-i, --interval` | Watch interval in seconds |
-| `--json` | Machine-readable output |
-| `--no-tokens` | Skip token checks |
-| `--alert-if-diff` | Exit 1 if diff exceeds threshold (e.g., `">0.01"`) |
+| `-A, --addresses` | Multiple addresses (comma-sep or file path) |
+| `-n, --network` | Target network (default: `mainnet`) |
+| `-b, --blocks` | Lookback depth (default: `50`) |
+| `-w, --watch` | Continuous monitoring mode |
+| `-i, --interval` | Watch interval in seconds (default: `30`) |
+| `--json` | JSON output |
+| `--no-tokens` | Skip ERC-20/SPL token checks |
+| `--alert-if-diff` | Exit 1 if diff matches condition (e.g., `">0.01"`, `"<-1"`) |
 
-**Exit codes:** `0` OK · `1` diff detected · `2` RPC failure
+**Exit codes:** `0` OK · `1` diff triggered · `2` RPC failure
 
-## Architecture
+## Extending
 
 ```
 src/
-├── index.js              # CLI entry
-├── config/networks.js    # Chain configs
+├── index.js              # CLI
+├── config/networks.js    # Chain definitions
 ├── adapters/
 │   ├── baseAdapter.js    # Interface
-│   ├── evmAdapter.js     # Ethereum/L2s
-│   └── solanaAdapter.js  # Solana/Helium
-└── services/
-    └── balanceService.js
+│   ├── evmAdapter.js     # ethers.js
+│   └── solanaAdapter.js  # @solana/web3.js
 ```
 
-Adding a chain: extend `BaseAdapter`, add config to `networks.js`, register in `adapters/index.js`.
+Add a chain: implement `BaseAdapter`, add to `networks.js`, register in `adapters/index.js`.
 
-## Stability Guarantee
+## Stability
 
-**Stability over features.** If output changes every version → no adoption.
-
-- JSON output format is **locked** — breaking changes = major version bump
-- Chain adapter interface is **stable** — extend without breaking existing adapters
-- Core primitive first, extras later
-
-This is Phase 0: make the tool undeniable before expanding surface area.
-
-## Roadmap
-
-**Phase 1: Operationally useful** ✅
-
-- [x] Watch mode (`--watch --interval 30`)
-- [x] Threshold alerts (`--alert-if-diff ">0.01"`)
-- [x] CI-friendly exit codes: `0` OK · `1` diff detected · `2` RPC failure
+- JSON schema is versioned. Breaking changes = major version bump.
+- Adapter interface is stable.
 
 ## License
 
 MIT
+
+---
+
+<!--
+GitHub repo description (1 sentence):
+CLI tool to fetch and diff wallet balances across EVM and Solana chains. JSON output, CI-friendly exit codes.
+
+GitHub topics:
+ethereum, solana, blockchain, cli, devops, monitoring, web3, defi
+-->
