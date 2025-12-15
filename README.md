@@ -73,6 +73,9 @@ mcbd --address 0x... --watch --interval 30
 
 # Multiple addresses
 mcbd --addresses 0xAAA...,0xBBB... --network mainnet
+
+# CI: alert if balance changed by more than 0.01 ETH
+mcbd --address 0x... --alert-if-diff ">0.01" && echo "OK" || echo "ALERT"
 ```
 
 ## Supported Networks
@@ -99,6 +102,9 @@ mcbd --addresses 0xAAA...,0xBBB... --network mainnet
 | `-i, --interval` | Watch interval in seconds |
 | `--json` | Machine-readable output |
 | `--no-tokens` | Skip token checks |
+| `--alert-if-diff` | Exit 1 if diff exceeds threshold (e.g., `">0.01"`) |
+
+**Exit codes:** `0` OK · `1` diff detected · `2` RPC failure
 
 ## Architecture
 
@@ -125,6 +131,14 @@ Adding a chain: extend `BaseAdapter`, add config to `networks.js`, register in `
 - Core primitive first, extras later
 
 This is Phase 0: make the tool undeniable before expanding surface area.
+
+## Roadmap
+
+**Phase 1: Operationally useful** ✅
+
+- [x] Watch mode (`--watch --interval 30`)
+- [x] Threshold alerts (`--alert-if-diff ">0.01"`)
+- [x] CI-friendly exit codes: `0` OK · `1` diff detected · `2` RPC failure
 
 ## License
 

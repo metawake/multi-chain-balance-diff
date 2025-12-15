@@ -21,6 +21,14 @@ const { getNetwork, getSupportedNetworks, getNetworksByType } = require('./confi
 const { createAdapter } = require('./adapters');
 
 // ==========================================================================
+// Exit Codes (CI-friendly)
+// ==========================================================================
+
+const EXIT_OK = 0;           // No diff detected (or below threshold)
+const EXIT_DIFF = 1;         // Diff detected (above threshold)
+const EXIT_RPC_ERROR = 2;    // RPC/connection failure
+
+// ==========================================================================
 // CLI Configuration
 // ==========================================================================
 
@@ -39,6 +47,7 @@ program
   .option('-i, --interval <seconds>', 'Watch interval in seconds', '30')
   .option('-p, --profile <name>', 'Use saved profile from config file')
   .option('--config <path>', 'Path to config file')
+  .option('--alert-if-diff <threshold>', 'Exit 1 if diff exceeds threshold (e.g., ">0.01", ">=1", "<-0.5")')
   .parse(process.argv);
 
 const options = program.opts();
@@ -202,6 +211,55 @@ function clearLine() {
 
 function formatTimestamp() {
   return new Date().toLocaleTimeString();
+}
+
+// ==========================================================================
+// Threshold Parsing
+// ==========================================================================
+
+/**
+ * Parse threshold string like ">0.01", ">=1", "<-0.5", "0.01" (defaults to >)
+ * Returns { operator, value } or null if invalid
+ */
+function parseThreshold(thresholdStr) {
+  if (!thresholdStr) return null;
+  
+  const match = thresholdStr.match(/^(>=?|<=?)?(-?\d+\.?\d*)$/);
+  if (!match) {
+    return null;
+  }
+  
+  const operator = match[1] || '>';  // default to > if no operator
+  const value = parseFloat(match[2]);
+  
+  if (isNaN(value)) return null;
+  
+  return { operator, value };
+}
+
+/**
+ * Check if diff triggers alert based on threshold
+ * @param {bigint} diffRaw - The raw diff value
+ * @param {number} decimals - Token decimals for conversion
+ * @param {object} threshold - Parsed threshold { operator, value }
+ * @returns {boolean} - true if alert should trigger
+ */
+function checkThreshold(diffRaw, decimals, threshold) {
+  if (!threshold) return false;
+  
+  // Convert bigint to number for comparison
+  const divisor = BigInt(10 ** decimals);
+  const whole = Number(diffRaw / divisor);
+  const fraction = Number(diffRaw % divisor) / (10 ** decimals);
+  const diffValue = whole + fraction;
+  
+  switch (threshold.operator) {
+    case '>':  return diffValue > threshold.value;
+    case '>=': return diffValue >= threshold.value;
+    case '<':  return diffValue < threshold.value;
+    case '<=': return diffValue <= threshold.value;
+    default:   return false;
+  }
 }
 
 // ==========================================================================
@@ -547,12 +605,12 @@ async function main() {
     await adapter.connect();
   } catch (error) {
     if (options.json) {
-      console.log(JSON.stringify({ error: `Connection failed: ${error.message}` }));
+      console.log(JSON.stringify({ error: `Connection failed: ${error.message}`, exitCode: EXIT_RPC_ERROR }));
     } else {
       console.error(`\n❌ Could not connect to ${networkConfig.name}`);
       console.error(`   ${error.message}\n`);
     }
-    process.exit(1);
+    process.exit(EXIT_RPC_ERROR);
   }
 
   // Watch mode (single address only)
@@ -576,18 +634,45 @@ async function main() {
       addresses.map(addr => fetchAddressData(adapter, networkConfig, addr, blocksBack, checkTokens))
     );
 
+    // Check threshold for any address
+    const threshold = parseThreshold(options.alertIfDiff);
+    let anyAlertTriggered = false;
+    
+    if (threshold) {
+      for (const r of results) {
+        if (!r.error && checkThreshold(r.balanceDiff.diff, networkConfig.nativeDecimals, threshold)) {
+          anyAlertTriggered = true;
+          break;
+        }
+      }
+    }
+
     if (options.json) {
       const output = buildMultiAddressJsonOutput(networkConfig, results.map(r => {
         if (r.error) {
           return { address: r.address, error: r.error };
         }
-        return buildJsonOutput(networkConfig, r.address, r.balanceDiff, r.tokenBalances, adapter);
+        const item = buildJsonOutput(networkConfig, r.address, r.balanceDiff, r.tokenBalances, adapter);
+        if (threshold) {
+          item.alert = {
+            threshold: options.alertIfDiff,
+            triggered: checkThreshold(r.balanceDiff.diff, networkConfig.nativeDecimals, threshold),
+          };
+        }
+        return item;
       }));
+      if (threshold) {
+        output.alert = { threshold: options.alertIfDiff, triggered: anyAlertTriggered };
+      }
       console.log(JSON.stringify(output, null, 2));
     } else {
       printMultiAddressSummary(networkConfig, results, blocksBack);
+      if (anyAlertTriggered) {
+        console.log(`${c('yellow')}⚠️  Alert: diff ${options.alertIfDiff} triggered${c('reset')}\n`);
+      }
     }
-    return;
+    
+    process.exit(anyAlertTriggered ? EXIT_DIFF : EXIT_OK);
   }
 
   // Single address mode
@@ -613,21 +698,46 @@ async function main() {
       tokenBalances = await adapter.getTokenBalances(address, networkConfig.tokens);
     }
 
+    // Check threshold if specified
+    const threshold = parseThreshold(options.alertIfDiff);
+    const alertTriggered = checkThreshold(balanceDiff.diff, networkConfig.nativeDecimals, threshold);
+
     // Output results
     if (options.json) {
       const output = buildJsonOutput(networkConfig, address, balanceDiff, tokenBalances, adapter);
+      if (threshold) {
+        output.alert = {
+          threshold: options.alertIfDiff,
+          triggered: alertTriggered,
+        };
+      }
       console.log(JSON.stringify(output, null, 2));
     } else {
       printPrettyOutput(networkConfig, address, balanceDiff, tokenBalances, adapter, blocksBack);
+      
+      if (alertTriggered) {
+        console.log(`${c('yellow')}⚠️  Alert: diff ${options.alertIfDiff} triggered${c('reset')}\n`);
+      }
     }
 
+    // Exit with appropriate code
+    process.exit(alertTriggered ? EXIT_DIFF : EXIT_OK);
+
   } catch (error) {
+    // Determine if this is an RPC error
+    const isRpcError = error.code === 'ENOTFOUND' || 
+                       error.code === 'ECONNREFUSED' ||
+                       error.message?.includes('429') ||
+                       error.message?.includes('rate') ||
+                       error.message?.includes('timeout');
+
     if (options.json) {
       console.log(JSON.stringify({ 
         error: error.message,
         code: error.code || null,
+        exitCode: isRpcError ? EXIT_RPC_ERROR : EXIT_DIFF,
       }));
-      process.exit(1);
+      process.exit(isRpcError ? EXIT_RPC_ERROR : EXIT_DIFF);
     }
 
     console.error();
@@ -647,7 +757,7 @@ async function main() {
     }
     
     console.error();
-    process.exit(1);
+    process.exit(isRpcError ? EXIT_RPC_ERROR : EXIT_DIFF);
   }
 }
 
