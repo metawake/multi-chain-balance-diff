@@ -57,12 +57,33 @@ mcbd --address $STAKER --network mainnet --blocks 1000 --json \
 ## Install
 
 ```bash
-npx multi-chain-balance-diff --address 0x... --network mainnet
-
-# or globally
 npm install -g multi-chain-balance-diff
-mcbd --address 0x...
 ```
+
+---
+
+## Quickstart (60 seconds)
+
+```bash
+# 1. Check a wallet balance diff (uses public RPC)
+mcbd --address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --network mainnet
+
+# 2. Get JSON output, extract the diff
+mcbd -a 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 -n mainnet --json | jq '.native.diff'
+
+# 3. CI check: exit 1 if balance dropped more than 0.1 ETH
+mcbd -a 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 -n mainnet --alert-if-diff "<-0.1"
+echo "Exit code: $?"
+# 0 = OK, 1 = threshold triggered, 2 = RPC error
+```
+
+**One-liner for npx (no install):**
+
+```bash
+npx multi-chain-balance-diff -a 0x... -n mainnet --json
+```
+
+---
 
 ## Usage
 
@@ -97,11 +118,117 @@ mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 | `-b, --blocks` | Lookback depth (default: `50`) |
 | `-w, --watch` | Continuous monitoring mode |
 | `-i, --interval` | Watch interval in seconds (default: `30`) |
+| `-c, --count` | Exit after N polls (watch mode) |
+| `--exit-on-error` | Exit immediately on RPC failure (watch mode) |
+| `--exit-on-diff` | Exit immediately when threshold triggers (watch mode) |
 | `--json` | JSON output |
 | `--no-tokens` | Skip ERC-20/SPL token checks |
 | `--alert-if-diff` | Exit 1 if diff matches condition (e.g., `">0.01"`, `"<-1"`) |
+| `--alert-pct` | Exit 1 if diff exceeds % of balance (e.g., `">5"`, `"<-10"`) |
 
-**Exit codes:** `0` OK · `1` diff triggered · `2` RPC failure
+**Exit codes:** `0` OK · `1` diff triggered · `2` RPC failure · `130` SIGINT
+
+---
+
+## Watch Mode for CI/Cron
+
+Watch mode is designed for long-running monitoring, cron jobs, and CI pipelines.
+
+### Patterns
+
+```bash
+# One-shot: poll once, exit on threshold
+mcbd -a $ADDR -n base --count 1 --alert-if-diff ">0.01" --json
+
+# CI health check: 5 polls, fail fast on error or diff
+mcbd -a $ADDR -n mainnet --watch --count 5 \
+  --exit-on-error --exit-on-diff --alert-pct ">10" --json
+
+# Cron monitor: 10 polls over 5 minutes, log NDJSON
+mcbd -a $ADDR -n solana --watch --interval 30 --count 10 --json >> /var/log/balance.ndjson
+
+# Infinite watch with alerts (SIGINT to stop)
+mcbd -a $ADDR -n polygon --watch --interval 60 --alert-if-diff "<-1"
+```
+
+### Example Output
+
+**Normal operation (no diff):**
+
+```json
+{
+  "schemaVersion": "0.1.0",
+  "network": { "key": "mainnet", "name": "Ethereum Mainnet", "chainType": "evm", "chainId": 1 },
+  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "explorer": "https://etherscan.io/address/0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "block": { "current": 19234567, "previous": 19234517 },
+  "native": {
+    "symbol": "ETH",
+    "decimals": 18,
+    "balance": "1.234567",
+    "balanceRaw": "1234567000000000000",
+    "diff": "0",
+    "diffRaw": "0",
+    "diffSign": "positive"
+  },
+  "tokens": [],
+  "timestamp": "2025-01-15T10:30:00.000Z"
+}
+```
+
+Exit: `0`
+
+**Diff detected (threshold triggered):**
+
+```json
+{
+  "schemaVersion": "0.1.0",
+  "network": { "key": "base", "name": "Base", "chainType": "evm", "chainId": 8453 },
+  "address": "0xTreasury...",
+  "block": { "current": 8765432, "previous": 8765382 },
+  "native": {
+    "symbol": "ETH",
+    "balance": "10.5",
+    "diff": "0.05",
+    "diffRaw": "50000000000000000",
+    "diffSign": "positive"
+  },
+  "alert": {
+    "threshold": ">0.01",
+    "thresholdPct": null,
+    "triggered": true,
+    "triggeredBy": "absolute"
+  },
+  "timestamp": "2025-01-15T10:30:00.000Z"
+}
+```
+
+Exit: `1`
+
+**Error state (RPC unavailable):**
+
+```json
+{
+  "schemaVersion": "0.1.0",
+  "error": "connect ECONNREFUSED 127.0.0.1:8545",
+  "code": "ECONNREFUSED",
+  "exitCode": 2
+}
+```
+
+Exit: `2`
+
+**Watch mode NDJSON stream:**
+
+```json
+{"schemaVersion":"0.1.0","type":"watch_start","timestamp":"2025-01-15T10:30:00.000Z","network":"mainnet","address":"0x...","interval":30,"count":3}
+{"schemaVersion":"0.1.0","timestamp":"2025-01-15T10:30:00.500Z","address":"0x...","block":19234567,"balance":"1.234","diff":"0","alert":false,"poll":1}
+{"schemaVersion":"0.1.0","timestamp":"2025-01-15T10:30:30.500Z","address":"0x...","block":19234569,"balance":"1.234","diff":"0","alert":false,"poll":2}
+{"schemaVersion":"0.1.0","timestamp":"2025-01-15T10:31:00.500Z","address":"0x...","block":19234571,"balance":"1.235","diff":"0.001","alert":true,"poll":3}
+{"schemaVersion":"0.1.0","type":"watch_end","timestamp":"2025-01-15T10:31:00.600Z","polls":3,"exitCode":1}
+```
+
+---
 
 ## Extending
 
@@ -117,10 +244,21 @@ src/
 
 Add a chain: implement `BaseAdapter`, add to `networks.js`, register in `adapters/index.js`.
 
+## JSON Schema
+
+JSON output includes a `schemaVersion` field (e.g., `"0.1.0"`). Schema changes are versioned:
+
+- **Patch**: Documentation, new optional fields
+- **Minor**: New output types, additive changes  
+- **Major**: Breaking changes to existing fields
+
+See [`schema/mcbd-output.schema.json`](./schema/mcbd-output.schema.json) for the full specification.
+
 ## Stability
 
 - JSON schema is versioned. Breaking changes = major version bump.
-- Adapter interface is stable.
+- Adapter interface is stable. New chains can be added without breaking existing integrations.
+- See [CHANGELOG.md](./CHANGELOG.md) for release history.
 
 ## License
 
