@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "0.1.0",
+  "network": {
+    "key": "base",
+    "name": "Base",
+    "chainType": "evm",
+    "chainId": 8453
+  },
+  "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bA21",
+  "explorer": "https://basescan.org/address/0x742d35Cc6634C0532925a3b844Bc9e7595f5bA21",
+  "block": {
+    "current": 8765432,
+    "previous": 8765382
+  },
+  "native": {
+    "symbol": "ETH",
+    "decimals": 18,
+    "balance": "10.5",
+    "balanceRaw": "10500000000000000000",
+    "diff": "0.15",
+    "diffRaw": "-150000000000000000",
+    "diffSign": "negative"
+  },
+  "tokens": [],
+  "alert": {
+    "threshold": "<-0.1",
+    "thresholdPct": null,
+    "triggered": true,
+    "triggeredBy": "absolute"
+  },
+  "timestamp": "2025-01-15T10:30:00.000Z"
+}
+
