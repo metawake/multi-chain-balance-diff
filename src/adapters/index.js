@@ -25,10 +25,12 @@ const ADAPTER_MAP = {
  * Create an adapter for the given network configuration.
  * 
  * @param {object} networkConfig - Network configuration from networks.js
+ * @param {object} options - Adapter options
+ * @param {number} options.timeoutMs - RPC timeout in milliseconds (default: 30000)
  * @returns {BaseAdapter} Chain-specific adapter instance
  * @throws {Error} If chain type is not supported
  */
-function createAdapter(networkConfig) {
+function createAdapter(networkConfig, options = {}) {
   // Determine chain type (default to 'evm' for backwards compatibility)
   const chainType = networkConfig.chainType || 'evm';
   
@@ -41,7 +43,7 @@ function createAdapter(networkConfig) {
     );
   }
   
-  return new AdapterClass(networkConfig);
+  return new AdapterClass(networkConfig, options);
 }
 
 /**
@@ -68,3 +70,5 @@ module.exports = {
   EVMAdapter,
   SolanaAdapter,
 };
+
+

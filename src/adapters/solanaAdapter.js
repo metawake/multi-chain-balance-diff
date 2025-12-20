@@ -18,20 +18,48 @@ const BaseAdapter = require('./baseAdapter');
 // SPL Token Program ID
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
+// Default timeout: 30 seconds
+const DEFAULT_TIMEOUT_MS = 30000;
+
 class SolanaAdapter extends BaseAdapter {
-  constructor(networkConfig) {
+  constructor(networkConfig, options = {}) {
     super(networkConfig);
     this.conn = null;
+    this.timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
   }
 
   getChainType() {
     return 'solana';
   }
 
+  /**
+   * Create a fetch function with timeout support.
+   */
+  _createFetchWithTimeout() {
+    const timeoutMs = this.timeoutMs;
+    return async (url, options) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+        });
+        return response;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+  }
+
   async connect() {
     this.conn = new Connection(
       this.networkConfig.rpcUrl,
-      { commitment: 'confirmed' }
+      { 
+        commitment: 'confirmed',
+        fetch: this._createFetchWithTimeout(),
+      }
     );
     // Verify connection
     await this.conn.getSlot();
@@ -177,3 +205,5 @@ class SolanaAdapter extends BaseAdapter {
 }
 
 module.exports = SolanaAdapter;
+
+

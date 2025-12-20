@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--timeout` flag for configurable RPC request timeout (default: 30s)
+- Documentation for custom RPC environment variables
+
 ---
 
 ## [0.1.0] - 2025-01-15

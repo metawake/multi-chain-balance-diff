@@ -6,7 +6,7 @@
  * all compatible networks.
  */
 
-const { ethers } = require('ethers');
+const { ethers, FetchRequest } = require('ethers');
 const BaseAdapter = require('./baseAdapter');
 
 // Minimal ERC-20 ABI for balance queries
@@ -16,10 +16,14 @@ const ERC20_ABI = [
   'function symbol() view returns (string)',
 ];
 
+// Default timeout: 30 seconds
+const DEFAULT_TIMEOUT_MS = 30000;
+
 class EVMAdapter extends BaseAdapter {
-  constructor(networkConfig) {
+  constructor(networkConfig, options = {}) {
     super(networkConfig);
     this.provider = null;
+    this.timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
   }
 
   getChainType() {
@@ -27,7 +31,11 @@ class EVMAdapter extends BaseAdapter {
   }
 
   async connect() {
-    this.provider = new ethers.JsonRpcProvider(this.networkConfig.rpcUrl);
+    // Create FetchRequest with timeout
+    const fetchRequest = new FetchRequest(this.networkConfig.rpcUrl);
+    fetchRequest.timeout = this.timeoutMs;
+    
+    this.provider = new ethers.JsonRpcProvider(fetchRequest);
     // Verify connection by fetching network
     await this.provider.getNetwork();
     this.connection = this.provider;
@@ -124,3 +132,5 @@ class EVMAdapter extends BaseAdapter {
 }
 
 module.exports = EVMAdapter;
+
+

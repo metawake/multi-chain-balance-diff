@@ -58,6 +58,7 @@ program
   .option('--config <path>', 'Path to config file')
   .option('--alert-if-diff <threshold>', 'Exit 1 if diff exceeds threshold (e.g., ">0.01", ">=1", "<-0.5")')
   .option('--alert-pct <threshold>', 'Exit 1 if diff exceeds % of balance (e.g., ">5", "<-10")')
+  .option('--timeout <seconds>', 'RPC request timeout in seconds', '30')
   .parse(process.argv);
 
 const options = program.opts();
@@ -803,8 +804,11 @@ async function main() {
     process.exit(1);
   }
 
+  // Parse timeout (convert seconds to milliseconds)
+  const timeoutMs = parseInt(options.timeout, 10) * 1000;
+
   // Create the appropriate adapter for this chain
-  const adapter = createAdapter(networkConfig);
+  const adapter = createAdapter(networkConfig, { timeoutMs });
 
   // Validate all addresses before connecting (fail fast)
   for (const addr of addresses) {

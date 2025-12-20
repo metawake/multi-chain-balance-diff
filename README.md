@@ -130,8 +130,9 @@ mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 | `--no-tokens` | Skip ERC-20/SPL token checks |
 | `--alert-if-diff` | Exit 1 if diff matches condition (e.g., `">0.01"`, `"<-1"`) |
 | `--alert-pct` | Exit 1 if diff exceeds % of balance (e.g., `">5"`, `"<-10"`) |
+| `--timeout` | RPC request timeout in seconds (default: `30`) |
 
-**Exit codes:** `0` OK · `1` diff triggered · `2` RPC failure · `130` SIGINT
+**Exit codes:** `0` OK · `1` diff triggered · `2` RPC failure/timeout · `130` SIGINT
 
 ---
 
@@ -148,6 +149,39 @@ mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 
 ---
 
+## Configuration
+
+### Custom RPC Endpoints
+
+Override default public RPCs with environment variables:
+
+| Variable | Network |
+|----------|---------|
+| `RPC_URL_ETH` | Ethereum Mainnet |
+| `RPC_URL_POLYGON` | Polygon |
+| `RPC_URL_BASE` | Base |
+| `RPC_URL_ARBITRUM` | Arbitrum |
+| `RPC_URL_OPTIMISM` | Optimism |
+| `RPC_URL_SOLANA` | Solana / Helium |
+| `RPC_URL_SEPOLIA` | Sepolia testnet |
+
+```bash
+# Use private RPC for reliability
+export RPC_URL_ETH=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+mcbd -a 0x... -n mainnet --json
+```
+
+### Timeout
+
+Default timeout is 30 seconds. Adjust for slow or unreliable RPCs:
+
+```bash
+mcbd -a 0x... -n mainnet --timeout 60    # 60 seconds
+mcbd -a 0x... -n solana --timeout 10     # 10 seconds (fast-fail)
+```
+
+---
+
 ## Common Failure Modes
 
 ### RPC Rate Limits
@@ -155,17 +189,24 @@ mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 Public RPCs have strict rate limits. Symptoms: `429 Too Many Requests` or slow responses.
 
 ```bash
-# Solution: Use a private RPC (Alchemy, Infura, QuickNode)
-export ETH_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+# Solution: Use a private RPC
+export RPC_URL_ETH=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+```
+
+### Timeout / Slow RPC
+
+```bash
+# Increase timeout for slow networks
+mcbd -a 0x... -n mainnet --timeout 60
 ```
 
 ### Unavailable Chain / RPC Down
 
 ```json
-{"schemaVersion":"0.1.0","error":"connect ECONNREFUSED 127.0.0.1:8545","code":"ECONNREFUSED","exitCode":2}
+{"schemaVersion":"0.1.0","error":"connect ECONNREFUSED","code":"ECONNREFUSED","exitCode":2}
 ```
 
-Exit code `2` indicates RPC failure. Check network connectivity and RPC URL validity.
+Exit code `2` indicates RPC failure. Check network connectivity and RPC URL.
 
 ### Invalid Address Format
 
@@ -175,15 +216,6 @@ $ mcbd --address invalid --network mainnet --json
 ```
 
 EVM addresses must be `0x` + 40 hex chars. Solana addresses are base58 encoded.
-
-### Missing Environment Variables
-
-If using custom RPC endpoints via env vars, ensure they're set before running:
-
-```bash
-# Check if RPC env is set
-[ -z "$ETH_RPC_URL" ] && echo "Warning: Using public RPC (rate limited)"
-```
 
 ---
 

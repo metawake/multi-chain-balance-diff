@@ -79,5 +79,11 @@ describe('CLI Validation', () => {
     assert.ok(output.includes('--network'), 'Should show network option');
     assert.ok(output.includes('--json'), 'Should show json option');
   });
+
+  it('--help shows timeout option', () => {
+    const output = execSync(`node ${CLI_PATH} --help`, { encoding: 'utf8' });
+    assert.ok(output.includes('--timeout'), 'Should show timeout option');
+    assert.ok(output.includes('30'), 'Should show default timeout value');
+  });
 });
 
