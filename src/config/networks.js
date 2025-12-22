@@ -149,6 +149,35 @@ const networks = {
     ],
   },
 
+  fantom: {
+    name: 'Fantom Opera',
+    chainType: 'evm',
+    chainId: 250,
+    rpcUrl: process.env.RPC_URL_FTM || 'https://rpc.ftm.tools',
+    nativeSymbol: 'FTM',
+    nativeDecimals: 18,
+    blockExplorer: 'https://ftmscan.com',
+    tokens: [
+      { symbol: 'USDC', address: '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75', decimals: 6 },
+      { symbol: 'USDT', address: '0x049d68029688eAbF473097a2fC38ef61633A3C7A', decimals: 6 },
+      { symbol: 'DAI', address: '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E', decimals: 18 },
+    ],
+  },
+
+  zksync: {
+    name: 'zkSync Era',
+    chainType: 'evm',
+    chainId: 324,
+    rpcUrl: process.env.RPC_URL_ZKSYNC || 'https://mainnet.era.zksync.io',
+    nativeSymbol: 'ETH',
+    nativeDecimals: 18,
+    blockExplorer: 'https://explorer.zksync.io',
+    tokens: [
+      { symbol: 'USDC', address: '0x3355df6D4c9C3035724Fd0e3914dE96A5a83aaf4', decimals: 6 },
+      { symbol: 'USDT', address: '0x493257fD37EDB34451f62EDf8D2a0C418852bA4C', decimals: 6 },
+    ],
+  },
+
   // ==========================================================================
   // Solana Networks
   // ==========================================================================

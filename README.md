@@ -112,6 +112,8 @@ mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 | `optimism` | EVM | ETH | USDC, OP, SNX |
 | `bnb` | EVM | BNB | USDT, USDC, BUSD |
 | `avalanche` | EVM | AVAX | USDC, USDT |
+| `fantom` | EVM | FTM | USDC, USDT, DAI |
+| `zksync` | EVM | ETH | USDC, USDT |
 | `solana` | Solana | SOL | USDC, BONK, JUP |
 | `helium` | Solana | SOL | HNT, MOBILE, IOT, DC |
 
