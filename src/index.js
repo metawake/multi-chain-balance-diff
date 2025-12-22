@@ -326,6 +326,10 @@ function listNetworks() {
         const net = getNetwork(key);
         return { key, name: net.name, symbol: net.nativeSymbol };
       }),
+      ton: getNetworksByType('ton').map(key => {
+        const net = getNetwork(key);
+        return { key, name: net.name, symbol: net.nativeSymbol };
+      }),
     };
     console.log(JSON.stringify(networks, null, 2));
     return;
@@ -344,12 +348,18 @@ function listNetworks() {
     const net = getNetwork(key);
     console.log(`    ${c('cyan')}${key.padEnd(12)}${c('reset')} ${net.name} (${net.nativeSymbol})`);
   }
+
+  console.log('\n  TON Chains:');
+  for (const key of getNetworksByType('ton')) {
+    const net = getNetwork(key);
+    console.log(`    ${c('cyan')}${key.padEnd(12)}${c('reset')} ${net.name} (${net.nativeSymbol})`);
+  }
   
   console.log('\nUsage:');
   console.log('  mcbd --address <ADDR> --network mainnet');
   console.log('  mcbd --address <ADDR> --network base');
   console.log('  mcbd --address <ADDR> --network solana');
-  console.log('  mcbd --address <ADDR> --network helium --json\n');
+  console.log('  mcbd --address <ADDR> --network ton --json\n');
 }
 
 // ==========================================================================
