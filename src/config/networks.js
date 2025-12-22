@@ -118,6 +118,37 @@ const networks = {
     ],
   },
 
+  bnb: {
+    name: 'BNB Chain',
+    chainType: 'evm',
+    chainId: 56,
+    rpcUrl: process.env.RPC_URL_BNB || 'https://bsc-dataseed.binance.org',
+    nativeSymbol: 'BNB',
+    nativeDecimals: 18,
+    blockExplorer: 'https://bscscan.com',
+    tokens: [
+      { symbol: 'USDT', address: '0x55d398326f99059fF775485246999027B3197955', decimals: 18 },
+      { symbol: 'USDC', address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', decimals: 18 },
+      { symbol: 'BUSD', address: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', decimals: 18 },
+      { symbol: 'WBNB', address: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', decimals: 18 },
+    ],
+  },
+
+  avalanche: {
+    name: 'Avalanche C-Chain',
+    chainType: 'evm',
+    chainId: 43114,
+    rpcUrl: process.env.RPC_URL_AVAX || 'https://api.avax.network/ext/bc/C/rpc',
+    nativeSymbol: 'AVAX',
+    nativeDecimals: 18,
+    blockExplorer: 'https://snowtrace.io',
+    tokens: [
+      { symbol: 'USDC', address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E', decimals: 6 },
+      { symbol: 'USDT', address: '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7', decimals: 6 },
+      { symbol: 'WAVAX', address: '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7', decimals: 18 },
+    ],
+  },
+
   // ==========================================================================
   // Solana Networks
   // ==========================================================================
@@ -231,4 +262,5 @@ module.exports = {
   getNetworksByType,
   getChainType,
 };
+
 

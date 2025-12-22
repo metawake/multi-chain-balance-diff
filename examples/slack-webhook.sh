@@ -67,3 +67,4 @@ curl -s -X POST "$SLACK_WEBHOOK_URL" \
 echo "Slack notification sent (exit code: $EXIT_CODE)"
 exit $EXIT_CODE
 
+

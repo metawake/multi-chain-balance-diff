@@ -15,7 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.1.1] - 2025-12-21
+
 ### Added
+- BNB Chain (BSC) support
+- Avalanche C-Chain support
 - `--timeout` flag for configurable RPC request timeout (default: 30s)
 - Documentation for custom RPC environment variables
 
@@ -41,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial npm release
 - JSON output schema: `0.1.0`
 
-[Unreleased]: https://github.com/metawake/multi-chain-balance-diff/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/metawake/multi-chain-balance-diff/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/metawake/multi-chain-balance-diff/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/metawake/multi-chain-balance-diff/releases/tag/v0.1.0
 

@@ -119,3 +119,4 @@ class BaseAdapter {
 }
 
 module.exports = BaseAdapter;
+
