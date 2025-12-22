@@ -239,6 +239,34 @@ const networks = {
     blockExplorer: 'https://explorer.solana.com',
     tokens: [],
   },
+
+  // ==========================================================================
+  // TON Networks
+  // ==========================================================================
+
+  ton: {
+    name: 'TON Mainnet',
+    chainType: 'ton',
+    chainId: null,
+    rpcUrl: process.env.RPC_URL_TON || 'https://toncenter.com/api/v2/jsonRPC',
+    nativeSymbol: 'TON',
+    nativeDecimals: 9,
+    blockExplorer: 'https://tonscan.org',
+    tokens: [
+      // Jettons can be added here later
+    ],
+  },
+
+  'ton-testnet': {
+    name: 'TON Testnet',
+    chainType: 'ton',
+    chainId: null,
+    rpcUrl: process.env.RPC_URL_TON_TESTNET || 'https://testnet.toncenter.com/api/v2/jsonRPC',
+    nativeSymbol: 'TON',
+    nativeDecimals: 9,
+    blockExplorer: 'https://testnet.tonscan.org',
+    tokens: [],
+  },
 };
 
 // ==========================================================================

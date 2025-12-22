@@ -12,6 +12,7 @@
 
 const EVMAdapter = require('./evmAdapter');
 const SolanaAdapter = require('./solanaAdapter');
+const TonAdapter = require('./tonAdapter');
 
 /**
  * Chain type to adapter class mapping.
@@ -19,6 +20,7 @@ const SolanaAdapter = require('./solanaAdapter');
 const ADAPTER_MAP = {
   evm: EVMAdapter,
   solana: SolanaAdapter,
+  ton: TonAdapter,
 };
 
 /**
@@ -69,6 +71,7 @@ module.exports = {
   isChainTypeSupported,
   EVMAdapter,
   SolanaAdapter,
+  TonAdapter,
 };
 
 

@@ -116,6 +116,7 @@ mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 | `zksync` | EVM | ETH | USDC, USDT |
 | `solana` | Solana | SOL | USDC, BONK, JUP |
 | `helium` | Solana | SOL | HNT, MOBILE, IOT, DC |
+| `ton` | TON | TON | — |
 
 ## Options
 
