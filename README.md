@@ -42,6 +42,8 @@ mcbd --address $FEE_WALLET --network base --alert-if-diff "<-0.1"
 # exit 0 = OK, exit 1 = threshold breached, exit 2 = RPC error
 ```
 
+> 📁 See [`.github/examples/`](./.github/examples/) for ready-to-use GitHub Actions workflows.
+
 ### 3. DeFi/Rewards: Staking reward accrual verification
 
 ```bash

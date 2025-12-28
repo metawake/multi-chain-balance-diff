@@ -1,0 +1,63 @@
+# Example: Treasury balance monitoring with Slack alerts
+# Copy this to .github/workflows/treasury-monitor.yml in your repo
+#
+# Monitors a treasury address every 6 hours. Alerts Slack if balance drops >1 ETH.
+
+name: Treasury Monitor
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:        # Manual trigger
+
+env:
+  TREASURY_ADDRESS: '0xYourTreasuryAddress'
+  NETWORK: 'mainnet'
+  # Optional: Use private RPC for reliability
+  # RPC_URL_MAINNET: ${{ secrets.ALCHEMY_RPC_URL }}
+
+jobs:
+  check-balance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check treasury balance
+        id: balance
+        run: |
+          npx multi-chain-balance-diff@latest \
+            --address $TREASURY_ADDRESS \
+            --network $NETWORK \
+            --alert-if-diff "<-1" \
+            --json > result.json
+          
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+          cat result.json
+        continue-on-error: true
+
+      - name: Alert on significant drop
+        if: steps.balance.outputs.exit_code == '1'
+        run: |
+          DIFF=$(jq -r '.native.diff' result.json)
+          BALANCE=$(jq -r '.native.balance' result.json)
+          
+          curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"text\": \"⚠️ Treasury balance decreased by ${DIFF} ETH\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*Treasury Alert*\nBalance: ${BALANCE} ETH\nChange: ${DIFF} ETH\nNetwork: ${NETWORK}\"
+                  }
+                }
+              ]
+            }"
+
+      - name: Fail on RPC error
+        if: steps.balance.outputs.exit_code == '2'
+        run: |
+          echo "RPC error occurred"
+          cat result.json
+          exit 1
+

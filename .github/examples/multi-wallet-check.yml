@@ -1,0 +1,52 @@
+# Example: Multi-wallet balance check on deployment
+# Copy to .github/workflows/ and customize
+#
+# Runs after deploy to verify critical wallets haven't been drained unexpectedly.
+
+name: Post-Deploy Wallet Check
+
+on:
+  workflow_run:
+    workflows: ["Deploy"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  verify-wallets:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    strategy:
+      matrix:
+        include:
+          - name: "Fee Wallet (Base)"
+            address: "0xFeeWalletAddress"
+            network: "base"
+            threshold: "<-0.1"
+          - name: "Hot Wallet (Mainnet)"
+            address: "0xHotWalletAddress"
+            network: "mainnet"
+            threshold: "<-1"
+          - name: "Rewards Pool (Polygon)"
+            address: "0xRewardsAddress"
+            network: "polygon"
+            threshold: "<-100"
+    
+    steps:
+      - name: Check ${{ matrix.name }}
+        run: |
+          echo "Checking ${{ matrix.name }}..."
+          npx multi-chain-balance-diff@latest \
+            --address ${{ matrix.address }} \
+            --network ${{ matrix.network }} \
+            --alert-if-diff "${{ matrix.threshold }}" \
+            --json
+          
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 1 ]; then
+            echo "::warning::${{ matrix.name }} balance dropped beyond threshold"
+          elif [ $EXIT_CODE -eq 2 ]; then
+            echo "::error::RPC error checking ${{ matrix.name }}"
+            exit 1
+          fi
+
