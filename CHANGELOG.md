@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.5] - 2025-12-28
+
+### Added
+- `--webhook <url>` flag to POST JSON payload when alerts trigger
+- GitHub Actions workflow examples in `.github/examples/`
+- Scroll L2 support
+
+---
+
 ## [0.1.4] - 2025-12-22
 
 ### Added
