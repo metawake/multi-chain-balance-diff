@@ -392,14 +392,14 @@ Built by [Alex Alexapolsky](https://www.linkedin.com/in/alexey-a-181a614/) ([@me
 
 ## Support Development
 
-If this tool saves you time or money, consider supporting its development:
-
 **ETH donations (any EVM chain):**
 ```
 0x0a542565b3615e8fc934cc3cc4921a0c22e5dc5e
 ```
 
-💡 *Hint: This tool monitors balance changes — you can use it to verify your own donation went through!*
+If this tool saves you time or money, consider supporting its development.
+
+💡 *Hint: You can use this tool to verify your own donation went through!*
 
 ---
 
