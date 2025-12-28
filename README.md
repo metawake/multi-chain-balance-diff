@@ -360,6 +360,14 @@ MIT
 
 ---
 
+## Author
+
+Built by [Alex Alexapolsky](https://www.linkedin.com/in/alexey-a-181a614/) ([@metawake](https://github.com/metawake)). Available for Web3 infra consulting and contract work.
+
+If this tool saves you time: [GitHub Sponsors](https://github.com/sponsors/metawake) · Tips: `0x0a542565b3615e8fc934cc3cc4921a0c22e5dc5e`
+
+---
+
 <!--
 GitHub repo description (1 sentence):
 CLI tool to fetch and diff wallet balances across EVM and Solana chains. JSON output, CI-friendly exit codes.
