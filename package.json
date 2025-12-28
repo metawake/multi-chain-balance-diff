@@ -1,6 +1,6 @@
 {
   "name": "multi-chain-balance-diff",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "CLI tool to fetch and compare wallet balances across EVM and Solana chains",
   "main": "src/index.js",
   "bin": {

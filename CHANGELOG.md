@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.6] - 2025-12-28
+
+### Changed
+- Improved "Support Development" section in README with clearer ETH donation info
+- Clarified that donations can be sent on any EVM chain (Ethereum, Base, Polygon, etc.)
+- Added self-referential hint: users can verify their donations using the tool itself
+
+---
+
 ## [0.1.5] - 2025-12-28
 
 ### Added

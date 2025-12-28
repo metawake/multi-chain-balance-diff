@@ -390,7 +390,16 @@ Built by [Alex Alexapolsky](https://www.linkedin.com/in/alexey-a-181a614/) ([@me
 
 ⭐ **If you find this useful, [star the repo](https://github.com/metawake/multi-chain-balance-diff)** — it helps others discover it.
 
-If this tool saves you time: [GitHub Sponsors](https://github.com/sponsors/metawake) · Tips: `0x0a542565b3615e8fc934cc3cc4921a0c22e5dc5e`
+## Support Development
+
+If this tool saves you time or money, consider supporting its development:
+
+**ETH donations (any EVM chain):**
+```
+0x0a542565b3615e8fc934cc3cc4921a0c22e5dc5e
+```
+
+💡 *Hint: This tool monitors balance changes — you can use it to verify your own donation went through!*
 
 ---
 
