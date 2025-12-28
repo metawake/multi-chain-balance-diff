@@ -138,6 +138,7 @@ mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 | `--alert-if-diff` | Exit 1 if diff matches condition (e.g., `">0.01"`, `"<-1"`) |
 | `--alert-pct` | Exit 1 if diff exceeds % of balance (e.g., `">5"`, `"<-10"`) |
 | `--timeout` | RPC request timeout in seconds (default: `30`) |
+| `--webhook` | POST JSON payload to URL when alert triggers |
 
 **Exit codes:** `0` OK · `1` diff triggered · `2` RPC failure/timeout · `130` SIGINT
 
@@ -186,6 +187,26 @@ Default timeout is 30 seconds. Adjust for slow or unreliable RPCs:
 mcbd -a 0x... -n mainnet --timeout 60    # 60 seconds
 mcbd -a 0x... -n solana --timeout 10     # 10 seconds (fast-fail)
 ```
+
+### Webhooks
+
+POST JSON payload to a URL when an alert triggers:
+
+```bash
+# Slack webhook
+mcbd -a 0xTreasury -n mainnet --alert-if-diff "<-1" \
+  --webhook https://hooks.slack.com/services/XXX/YYY/ZZZ --json
+
+# Discord webhook
+mcbd -a 0xTreasury -n base --alert-pct "<-5" \
+  --webhook https://discord.com/api/webhooks/XXX/YYY --json
+
+# Custom endpoint
+mcbd -a 0xTreasury -n polygon --alert-if-diff ">0.1" \
+  --webhook https://your-server.com/balance-alert --json
+```
+
+The webhook payload includes the full JSON output plus a `webhook.sentAt` timestamp.
 
 ---
 

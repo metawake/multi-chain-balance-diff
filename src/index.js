@@ -59,6 +59,7 @@ program
   .option('--alert-if-diff <threshold>', 'Exit 1 if diff exceeds threshold (e.g., ">0.01", ">=1", "<-0.5")')
   .option('--alert-pct <threshold>', 'Exit 1 if diff exceeds % of balance (e.g., ">5", "<-10")')
   .option('--timeout <seconds>', 'RPC request timeout in seconds', '30')
+  .option('--webhook <url>', 'POST JSON payload to URL when alert triggers')
   .parse(process.argv);
 
 const options = program.opts();
@@ -308,6 +309,88 @@ function checkPercentageThreshold(diffRaw, previousRaw, decimals, threshold) {
     case '<=': return percentChange <= threshold.value;
     default:   return false;
   }
+}
+
+// ==========================================================================
+// Webhook Support
+// ==========================================================================
+
+/**
+ * POST JSON payload to webhook URL
+ * @param {string} url - Webhook URL
+ * @param {object} payload - JSON payload to send
+ * @returns {Promise<{success: boolean, statusCode?: number, error?: string}>}
+ */
+async function sendWebhook(url, payload) {
+  try {
+    const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === 'https:';
+    const http = isHttps ? require('https') : require('http');
+    
+    const postData = JSON.stringify(payload);
+    
+    const requestOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname + urlObj.search,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        'User-Agent': `multi-chain-balance-diff/${VERSION}`,
+      },
+      timeout: 10000, // 10 second timeout for webhook
+    };
+
+    return new Promise((resolve) => {
+      const req = http.request(requestOptions, (res) => {
+        resolve({ success: res.statusCode >= 200 && res.statusCode < 300, statusCode: res.statusCode });
+      });
+
+      req.on('error', (error) => {
+        resolve({ success: false, error: error.message });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ success: false, error: 'Request timeout' });
+      });
+
+      req.write(postData);
+      req.end();
+    });
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Build and send webhook if configured and alert triggered
+ */
+async function maybeNotifyWebhook(payload, alertTriggered) {
+  if (!options.webhook || !alertTriggered) {
+    return null;
+  }
+
+  const webhookPayload = {
+    ...payload,
+    webhook: {
+      sentAt: new Date().toISOString(),
+      trigger: 'alert',
+    },
+  };
+
+  const result = await sendWebhook(options.webhook, webhookPayload);
+  
+  if (!options.json) {
+    if (result.success) {
+      console.log(`${c('green')}✓ Webhook sent${c('reset')}`);
+    } else {
+      console.log(`${c('red')}✗ Webhook failed: ${result.error || `HTTP ${result.statusCode}`}${c('reset')}`);
+    }
+  }
+
+  return result;
 }
 
 // ==========================================================================
@@ -938,6 +1021,9 @@ async function main() {
         console.log(`${c('yellow')}⚠️  Alert: threshold ${which} triggered${c('reset')}\n`);
       }
     }
+
+    // Send webhook if configured and alert triggered
+    await maybeNotifyWebhook(output, anyAlertTriggered);
     
     process.exit(anyAlertTriggered ? EXIT_DIFF : EXIT_OK);
   }
@@ -998,6 +1084,9 @@ async function main() {
         console.log(`${c('yellow')}⚠️  Alert: threshold ${which} triggered${c('reset')}\n`);
       }
     }
+
+    // Send webhook if configured and alert triggered
+    await maybeNotifyWebhook(output, alertTriggered);
 
     // Exit with appropriate code
     process.exit(alertTriggered ? EXIT_DIFF : EXIT_OK);
