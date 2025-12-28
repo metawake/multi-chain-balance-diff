@@ -562,8 +562,13 @@ function printPrettyOutput(networkConfig, address, balanceDiff, tokenBalances, a
 
   if (!isMulti) {
     printSeparator('═');
+    printSponsorHint();
     console.log();
   }
+}
+
+function printSponsorHint() {
+  console.log(`  ${c('dim')}★ Tips: 0x0a54...dc5e · github.com/metawake/multi-chain-balance-diff${c('reset')}`);
 }
 
 function printMultiAddressSummary(networkConfig, results, blocksBack) {
@@ -595,6 +600,7 @@ function printMultiAddressSummary(networkConfig, results, blocksBack) {
   const totalDiffColored = formatDiffColored(totalDiff, networkConfig.nativeSymbol, networkConfig.nativeDecimals);
   console.log(`  ${c('bright')}Total:${c('reset')}      ${totalFormatted.padStart(12)} ${networkConfig.nativeSymbol}  ${totalDiffColored}`);
   printSeparator('═');
+  printSponsorHint();
   console.log();
 }
 
