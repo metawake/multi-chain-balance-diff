@@ -178,6 +178,21 @@ const networks = {
     ],
   },
 
+  scroll: {
+    name: 'Scroll',
+    chainType: 'evm',
+    chainId: 534352,
+    rpcUrl: process.env.RPC_URL_SCROLL || 'https://rpc.scroll.io',
+    nativeSymbol: 'ETH',
+    nativeDecimals: 18,
+    blockExplorer: 'https://scrollscan.com',
+    tokens: [
+      { symbol: 'USDC', address: '0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4', decimals: 6 },
+      { symbol: 'USDT', address: '0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df', decimals: 6 },
+      { symbol: 'WETH', address: '0x5300000000000000000000000000000000000004', decimals: 18 },
+    ],
+  },
+
   // ==========================================================================
   // Solana Networks
   // ==========================================================================

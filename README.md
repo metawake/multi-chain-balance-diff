@@ -11,7 +11,7 @@ mcbd --address 0x... --network mainnet --json | jq '.native.diff'
 
 ## What
 
-CLI that fetches balance at block N and block N-50, computes the difference, outputs JSON or pretty-prints. Supports Ethereum, Polygon, Base, Arbitrum, Optimism, BNB Chain, Avalanche, Fantom, zkSync Era, Solana, Helium, and TON.
+CLI that fetches balance at block N and block N-50, computes the difference, outputs JSON or pretty-prints. Supports Ethereum, Polygon, Base, Arbitrum, Optimism, BNB Chain, Avalanche, Fantom, zkSync Era, Scroll, Solana, Helium, and TON.
 
 ## Who
 
@@ -116,6 +116,7 @@ mcbd --address 0x... --alert-if-diff ">0.01"   # CI threshold
 | `avalanche` | EVM | AVAX | USDC, USDT |
 | `fantom` | EVM | FTM | USDC, USDT, DAI |
 | `zksync` | EVM | ETH | USDC, USDT |
+| `scroll` | EVM | ETH | USDC, USDT, WETH |
 | `solana` | Solana | SOL | USDC, BONK, JUP |
 | `helium` | Solana | SOL | HNT, MOBILE, IOT, DC |
 | `ton` | TON | TON | — |

@@ -55,6 +55,15 @@ describe('L2 Networks', () => {
     assert.ok(symbols.includes('OP'), 'Should have OP token');
     assert.ok(symbols.includes('SNX'), 'Should have SNX token');
   });
+
+  it('Scroll network is configured', () => {
+    const scroll = getNetwork('scroll');
+    assert.ok(scroll, 'Scroll network should exist');
+    assert.strictEqual(scroll.chainId, 534352, 'Scroll chainId should be 534352');
+    assert.strictEqual(scroll.nativeSymbol, 'ETH', 'Scroll native symbol should be ETH');
+    const symbols = scroll.tokens.map(t => t.symbol);
+    assert.ok(symbols.includes('USDC'), 'Should have USDC token');
+  });
 });
 
 describe('Network Discovery', () => {
